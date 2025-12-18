@@ -47,7 +47,8 @@ io.on('connection', (socket) => {
   //     io.emit('receivePublicMessage', message); 
   //   }
   // });
-
+  
+  
 
 
  
@@ -99,7 +100,15 @@ socket.on('createGroup', (data) => {
 
 socket.on('joinGroupRoom', (roomId) => {
     socket.join(roomId);
-    const members = roomMetadata[roomId]?.members || [];
+     const memberIds = roomMetadata[roomId]?.members || [];
+    const memberDetails = memberIds.map(id => ({
+        id: id,
+        name: connectedUsers[id] || "Unknown User"
+    }));
+  io.to(roomId).emit('updateRoomParticipants', { 
+        roomId, 
+        members: memberDetails 
+    });
     console.log(`[JOIN] ${socket.id}  joined group room: ${roomId}`);
 });
 
@@ -109,6 +118,19 @@ socket.on('sendGroupMessage', (data) => {
     io.to(roomId).emit('receiveGroupMessage', { roomId, message });
     console.log(`[GROUP MSG] in ${roomId}: ${message.text}`);
 });
+
+
+// socket.on('add_user_to_group', ({ roomId, userIdToAdd }) => {
+//   const targetSocketId = findSocketIdByUserId(userIdToAdd); // Helper to find their ID
+//   if (targetSocketId) {
+//     const targetSocket = io.sockets.sockets.get(targetSocketId);
+//     targetSocket.join(roomId);
+
+//     // Notify all participants of updated list
+//     const participants = Array.from(io.sockets.adapter.rooms.get(roomId) || []);
+//     io.to(roomId).emit('update_participants', { roomId, participants });
+//   }
+// });
 
 
 

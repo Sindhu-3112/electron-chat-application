@@ -16,13 +16,27 @@ function ChatRoom() {
   const [isCreatingGroup, setIsCreatingGroup] = useState(false) 
   const [activeRecipientId, setActiveRecipientId] = useState(null)
   const [allChatMessages, setAllChatMessages] = useState(sessionData.histories)
- 
+  const [roomMembers, setRoomMembers] = useState({}); 
 
   const messagesEndRef = useRef(null)
   const inputRef = useRef(null)
   // const activeRoom = connectedUsers.find(u => u.id === activeRecipientId);
   // const isCreator = activeRoom?.creator === socket.id;
   // const participants = activeRoom?.members || [];
+
+  
+useEffect(() => {
+    socket.on('updateRoomParticipants', ({ roomId, members }) => {
+        setRoomMembers(prev => ({
+            ...prev,
+            [roomId]: members
+        }));
+    });
+
+    return () => {
+        socket.off('updateRoomParticipants');
+    };
+}, []);
 
   const scrollToBottom = () => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
 
@@ -330,38 +344,16 @@ function ChatRoom() {
               style={{ flexGrow: 1, overflowY: 'auto', padding: '20px', backgroundColor: '#fff' }}
             >
               <h2>Chat: {getRecipientName(activeRecipientId)}</h2>
-              {/* <h2>
-                {activeRecipientId.startsWith('room_')&&   (
-                    <div
-                      style={{
-                        fontWeight: 'bold',
-                        fontSize: '0.75em',
-                        marginBottom: '4px',
-                        color: '#555'
-                      }}
-                    >
-                     <button>Add User +</button>
-                    </div>
-                  )}
-              </h2> */}
-               {/* <h2>
-     
-      {activeRecipientId.startsWith('room_') && (
-        <div style={{ fontSize: '0.6em', color: '#888', marginBottom: '10px' }}>
-          Participants: {participants.map(id => getRecipientName(id)).join(', ')}
-          
-         
-          {isCreator && (
-            <button 
-              onClick={() => handleAddUserToGroup(activeRecipientId)}
-              style={{ marginLeft: '10px', color: '#007bff', cursor: 'pointer' }}
-            >
-              Add User +
-            </button>
-          )}
-        </div>
-      )}
-    </h2> */}
+
+              {activeRecipientId.startsWith('room_') && (
+      <div style={{ fontSize: '0.85em', color: '#888', marginTop: '5px' }}>
+        <strong>Members: </strong>
+        {roomMembers[activeRecipientId] 
+          ? roomMembers[activeRecipientId].map(m => m.name).join(', ') 
+          : 'Loading members...'}
+      </div>
+    )}
+             
               {(allChatMessages[activeRecipientId] || []).map((msg) => (
                 <div
                   key={msg.id}
@@ -407,6 +399,7 @@ function ChatRoom() {
                   </div>
                 </div>
               ))}
+              
               <div ref={messagesEndRef} />
             </div>
 
