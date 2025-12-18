@@ -12,11 +12,21 @@ function ChatRoom() {
   const [sessionData] = useState(getStoredSession())
   const [username, setUsername] = useState(sessionData.username)
   const [connectedUsers, setConnectedUsers] = useState([])
-  const [selectedUsers, setSelectedUsers] = useState([]) 
-  const [isCreatingGroup, setIsCreatingGroup] = useState(false) 
+  const [selectedUsers, setSelectedUsers] = useState([])
+  const [isCreatingGroup, setIsCreatingGroup] = useState(false)
   const [activeRecipientId, setActiveRecipientId] = useState(null)
   const [allChatMessages, setAllChatMessages] = useState(sessionData.histories)
-  const [roomMembers, setRoomMembers] = useState({}); 
+  const [roomMembers, setRoomMembers] = useState({})
+  const [isAddingMember, setIsAddingMember] = useState(false)
+  const [selectedNewMembers, setSelectedNewMembers] = useState([])
+
+  const currentGroupMembers = roomMembers[activeRecipientId] || []
+  const availableUsersToAdd = connectedUsers.filter(
+    (user) =>
+      !user.isGroup &&
+      !currentGroupMembers.some((member) => member.id === user.id) &&
+      user.id !== socket.id
+  )
 
   const messagesEndRef = useRef(null)
   const inputRef = useRef(null)
@@ -24,19 +34,22 @@ function ChatRoom() {
   // const isCreator = activeRoom?.creator === socket.id;
   // const participants = activeRoom?.members || [];
 
-  
-useEffect(() => {
+  const activeRoom = connectedUsers.find((u) => u.id === activeRecipientId)
+  const isCreator = activeRoom?.isGroup && activeRoom?.creator === socket.id
+  const participants = roomMembers[activeRecipientId] || activeRoom?.members || []
+
+  useEffect(() => {
     socket.on('updateRoomParticipants', ({ roomId, members }) => {
-        setRoomMembers(prev => ({
-            ...prev,
-            [roomId]: members
-        }));
-    });
+      setRoomMembers((prev) => ({
+        ...prev,
+        [roomId]: members
+      }))
+    })
 
     return () => {
-        socket.off('updateRoomParticipants');
-    };
-}, []);
+      socket.off('updateRoomParticipants')
+    }
+  }, [])
 
   const scrollToBottom = () => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
 
@@ -83,18 +96,54 @@ useEffect(() => {
 
   useEffect(() => {
     socket.on('invitedToGroup', (groupData) => {
-      // Automatically join the room server-side or via emit
       socket.emit('joinGroupRoom', groupData.roomId)
 
-      // Add group to sidebar list
-      setConnectedUsers((prev) => [
-        ...prev,
-        {
-          id: groupData.roomId,
-          name: groupData.groupName,
-          isGroup: true
-        }
-      ])
+      setConnectedUsers((prev) => {
+        if (prev.find((u) => u.id === groupData.roomId)) return prev
+        return [
+          ...prev,
+          {
+            id: groupData.roomId,
+            name: groupData.groupName,
+            isGroup: true,
+            creator: groupData.creator,
+            members: groupData.members
+          }
+        ]
+      })
+    })
+
+    socket.on('updateRoomParticipants', ({ roomId, members }) => {
+      setRoomMembers((prev) => ({ ...prev, [roomId]: members }))
+
+      setConnectedUsers((prev) =>
+        prev.map((user) =>
+          user.id === roomId ? { ...user, members: members.map((m) => m.id) } : user
+        )
+      )
+    })
+  }, [])
+
+  useEffect(() => {
+    socket.on('invitedToGroup', (groupData) => {
+      const { roomId, groupName, creator, members } = groupData
+      socket.emit('joinGroupRoom', roomId)
+
+      setConnectedUsers((prev) => {
+        // Avoid duplicates
+        if (prev.find((u) => u.id === roomId)) return prev
+
+        return [
+          ...prev,
+          {
+            id: roomId,
+            name: groupName,
+            isGroup: true,
+            creator: creator,
+            members: members
+          }
+        ]
+      })
     })
 
     socket.on('receiveGroupMessage', (data) => {
@@ -131,10 +180,8 @@ useEffect(() => {
         timestamp: new Date().toISOString()
       }
 
-     
       if (activeRecipientId.startsWith('room_')) {
         socket.emit('sendGroupMessage', { roomId: activeRecipientId, message: messageBody })
-       
       } else {
         socket.emit('sendPrivateMessage', { recipientId: activeRecipientId, message: messageBody })
         addMessageToHistory({ ...messageBody, isPrivate: true }, activeRecipientId)
@@ -167,6 +214,22 @@ useEffect(() => {
   const formatTime = (isoString) => {
     if (!isoString) return ''
     return new Date(isoString).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+  }
+  const handleParticipantClick = (memberId) => {
+    if (isCreator && memberId !== socket.id) {
+      if (window.confirm(`Remove ${getRecipientName(memberId)}?`)) {
+        socket.emit('updateGroupMembers', {
+          roomId: activeRecipientId,
+          userId: memberId,
+          action: 'remove'
+        })
+        return
+      }
+    }
+
+    if (memberId !== socket.id) {
+      setActiveRecipientId(memberId)
+    }
   }
 
   if (!username) {
@@ -264,23 +327,6 @@ useEffect(() => {
             </button>
           ))
         )}
-
-        {/* {connectedUsers.map(user => (
-        <div key={user.id} style={{display: 'flex', alignItems: 'center'}}>
-            {isCreatingGroup && !user.isGroup && (
-                <input 
-                    type="checkbox" 
-                    onChange={(e) => {
-                        if(e.target.checked) setSelectedUsers([...selectedUsers, user.id]);
-                        else setSelectedUsers(selectedUsers.filter(id => id !== user.id));
-                    }}
-                /> 
-            )}
-            <button onClick={() => setActiveRecipientId(user.id)}>
-                {user.isGroup ? `👥 ${user.name}` : user.name}
-            </button>
-        </div>
-    ))} */}
       </div>
 
       {/* Main Area */}
@@ -346,14 +392,141 @@ useEffect(() => {
               <h2>Chat: {getRecipientName(activeRecipientId)}</h2>
 
               {activeRecipientId.startsWith('room_') && (
-      <div style={{ fontSize: '0.85em', color: '#888', marginTop: '5px' }}>
-        <strong>Members: </strong>
-        {roomMembers[activeRecipientId] 
-          ? roomMembers[activeRecipientId].map(m => m.name).join(', ') 
-          : 'Loading members...'}
-      </div>
-    )}
-             
+                <div style={{ fontSize: '0.85em', color: '#888' }}>
+                  <strong>Members: </strong>
+
+                  {participants.map((m, i) => (
+                    <span key={m.id || m}>
+                      {typeof m === 'string' ? getRecipientName(m) : m.name}
+                      {i < participants.length - 1 ? ', ' : ''}
+                    </span>
+                  ))}
+
+                  {isCreator && (
+                    <button
+                      onClick={() => setIsAddingMember(true)}
+                      style={{ marginLeft: '15px', color: '#007bff', cursor: 'pointer' }}
+                    >
+                      Add User +
+                    </button>
+                  )}
+                </div>
+              )}
+
+              {isAddingMember && (
+                <div
+                  onClick={() => setIsAddingMember(false)}
+                  style={{
+                    position: 'fixed',
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    background: 'rgba(0,0,0,0.5)',
+                    display: 'flex',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    zIndex: 1000
+                  }}
+                >
+                  <div
+                    onClick={(e) => e.stopPropagation()}
+                    style={{
+                      background: 'white',
+                      padding: '20px',
+                      borderRadius: '10px',
+                      width: '300px',
+                      maxHeight: '400px',
+                      overflowY: 'auto'
+                    }}
+                  >
+                    <h3>Select Users to Add</h3>
+                    <hr />
+
+                    {availableUsersToAdd.map((user) => (
+                      <div
+                        key={user.id}
+                        onClick={() => {
+                          if (selectedNewMembers.includes(user.id)) {
+                            setSelectedNewMembers(selectedNewMembers.filter((id) => id !== user.id))
+                          } else {
+                            setSelectedNewMembers([...selectedNewMembers, user.id])
+                          }
+                        }}
+                        style={{
+                          padding: '12px',
+                          cursor: 'pointer',
+                          borderBottom: '1px solid #eee',
+                          display: 'flex',
+                          alignItems: 'center',
+                          background: selectedNewMembers.includes(user.id)
+                            ? '#f0f7ff'
+                            : 'transparent'
+                        }}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={selectedNewMembers.includes(user.id)}
+                          readOnly
+                          style={{ marginRight: '10px' }}
+                        />
+                        <span style={{ color: 'black' }}>{user.name}</span>
+                      </div>
+                    ))}
+
+                    <div
+                      style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        marginTop: '20px'
+                      }}
+                    >
+                      <button
+                        onClick={() => {
+                          setIsAddingMember(false)
+                          setSelectedNewMembers([])
+                        }}
+                        style={{
+                          border: 'none',
+                          background: 'none',
+                          cursor: 'pointer',
+                          color: '#666'
+                        }}
+                      >
+                        Cancel
+                      </button>
+
+                      <button
+                        disabled={selectedNewMembers.length === 0}
+                        onClick={() => {
+                          selectedNewMembers.forEach((id) => {
+                            socket.emit('updateGroupMembers', {
+                              roomId: activeRecipientId,
+                              userId: id,
+                              action: 'add'
+                            })
+                          })
+
+                          setIsAddingMember(false)
+                          setSelectedNewMembers([])
+                        }}
+                        style={{
+                          padding: '8px 15px',
+                          background: '#007bff',
+                          color: 'white',
+                          borderRadius: '5px',
+                          border: 'none',
+                          cursor: selectedNewMembers.length === 0 ? 'not-allowed' : 'pointer',
+                          opacity: selectedNewMembers.length === 0 ? 0.5 : 1
+                        }}
+                      >
+                        Add {selectedNewMembers.length} Users
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {(allChatMessages[activeRecipientId] || []).map((msg) => (
                 <div
                   key={msg.id}
@@ -399,7 +572,7 @@ useEffect(() => {
                   </div>
                 </div>
               ))}
-              
+
               <div ref={messagesEndRef} />
             </div>
 

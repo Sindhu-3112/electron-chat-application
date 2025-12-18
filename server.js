@@ -132,6 +132,58 @@ socket.on('sendGroupMessage', (data) => {
 //   }
 // });
 
+socket.on('invitedToGroup', (groupData) => {
+    const { roomId, groupName, creator, members } = groupData;
+    socket.emit('joinGroupRoom', roomId);
+    console.log(`[INVITE] ${socket.id} invited to group "${groupName}" (${roomId})`);
+   
+    setAllChatMessages(prev => ({
+        ...prev,
+        [roomId]: [] 
+    }));
+
+   
+    setConnectedUsers(prev => {
+        if (prev.find(u => u.id === roomId)) return prev;
+        return [...prev, { id: roomId, name: groupName, isGroup: true, creator, members }];
+    });
+});
+
+socket.on('updateGroupMembers', (data) => {
+    const { roomId, userId, action } = data;
+    const room = roomMetadata[roomId];
+
+    
+    if (room && room.creator === socket.id) {
+        if (action === 'add') {
+          
+            const targetSocket = io.sockets.sockets.get(userId);
+            
+            if (targetSocket) {
+                targetSocket.join(roomId); 
+                
+                if (!room.members.includes(userId)) {
+                    room.members.push(userId);
+                }
+
+                
+                io.to(userId).emit('invitedToGroup', { 
+                    roomId, 
+                    groupName: room.groupName, 
+                    creator: room.creator, 
+                    members: room.members 
+                });
+            }
+        }
+        
+       
+        const updatedDetails = room.members.map(id => ({
+            id, name: connectedUsers[id] || "Unknown"
+        }));
+        io.to(roomId).emit('updateRoomParticipants', { roomId, members: updatedDetails });
+    }
+});
+
 
 
 
