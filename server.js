@@ -177,6 +177,26 @@ socket.on('updateGroupMembers', (data) => {
         }
         
        
+if (action === 'remove') {
+    room.members = room.members.filter(id => id !== userId);
+    
+   
+    const targetSocket = io.sockets.sockets.get(userId);
+    if (targetSocket) {
+        targetSocket.leave(roomId); 
+    }
+
+    
+    io.to(userId).emit('removedFromGroup', { roomId });
+
+   
+    const updatedDetails = room.members.map(id => ({
+        id, name: connectedUsers[id] || "Unknown"
+    }));
+    io.to(roomId).emit('updateRoomParticipants', { roomId, members: updatedDetails });
+}
+
+       
         const updatedDetails = room.members.map(id => ({
             id, name: connectedUsers[id] || "Unknown"
         }));

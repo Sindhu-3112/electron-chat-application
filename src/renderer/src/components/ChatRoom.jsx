@@ -19,6 +19,7 @@ function ChatRoom() {
   const [roomMembers, setRoomMembers] = useState({})
   const [isAddingMember, setIsAddingMember] = useState(false)
   const [selectedNewMembers, setSelectedNewMembers] = useState([])
+  const [activeMenuId, setActiveMenuId] = useState(null);
 
   const currentGroupMembers = roomMembers[activeRecipientId] || []
   const availableUsersToAdd = connectedUsers.filter(
@@ -30,26 +31,13 @@ function ChatRoom() {
 
   const messagesEndRef = useRef(null)
   const inputRef = useRef(null)
-  // const activeRoom = connectedUsers.find(u => u.id === activeRecipientId);
-  // const isCreator = activeRoom?.creator === socket.id;
-  // const participants = activeRoom?.members || [];
+
 
   const activeRoom = connectedUsers.find((u) => u.id === activeRecipientId)
   const isCreator = activeRoom?.isGroup && activeRoom?.creator === socket.id
   const participants = roomMembers[activeRecipientId] || activeRoom?.members || []
 
-  useEffect(() => {
-    socket.on('updateRoomParticipants', ({ roomId, members }) => {
-      setRoomMembers((prev) => ({
-        ...prev,
-        [roomId]: members
-      }))
-    })
-
-    return () => {
-      socket.off('updateRoomParticipants')
-    }
-  }, [])
+  
 
   const scrollToBottom = () => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
 
@@ -64,6 +52,19 @@ function ChatRoom() {
     },
     [username]
   )
+
+  useEffect(() => {
+    socket.on('updateRoomParticipants', ({ roomId, members }) => {
+      setRoomMembers((prev) => ({
+        ...prev,
+        [roomId]: members
+      }))
+    })
+
+    return () => {
+      socket.off('updateRoomParticipants')
+    }
+  }, [])
 
   useEffect(() => {
     if (username) socket.emit('registerName', username)
@@ -156,6 +157,22 @@ function ChatRoom() {
     }
   }, [addMessageToHistory])
 
+  useEffect(() => {
+    socket.on('removedFromGroup', ({ roomId }) => {
+      
+        setConnectedUsers(prev => prev.filter(c => c.id !== roomId));
+        
+       
+        if (activeRecipientId === roomId) {
+            setActiveRecipientId(null);
+            alert("You have been removed from the group.");
+        }
+    });
+
+    return () => socket.off('removedFromGroup');
+}, [activeRecipientId]);
+
+
   const handleCreateGroupSubmit = () => {
     if (selectedUsers.length > 0) {
       const groupName = prompt('Enter Group Name:')
@@ -215,22 +232,34 @@ function ChatRoom() {
     if (!isoString) return ''
     return new Date(isoString).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
   }
-  const handleParticipantClick = (memberId) => {
-    if (isCreator && memberId !== socket.id) {
-      if (window.confirm(`Remove ${getRecipientName(memberId)}?`)) {
-        socket.emit('updateGroupMembers', {
-          roomId: activeRecipientId,
-          userId: memberId,
-          action: 'remove'
-        })
-        return
-      }
-    }
 
-    if (memberId !== socket.id) {
-      setActiveRecipientId(memberId)
+  const handleParticipantAction = (memberId, memberName) => {
+ 
+  if (memberId === socket.id) return;
+
+  if (isCreator) {
+   
+    const choice = window.confirm(
+      `Options for ${memberName}:\n\n- Click OK to REMOVE from group\n- Click CANCEL to Open Private Chat`
+    );
+
+    if (choice) {
+      
+      socket.emit('updateGroupMembers', {
+        roomId: activeRecipientId,
+        userId: memberId,
+        action: 'remove',
+      });
+    } else {
+      
+      setActiveRecipientId(memberId);
     }
+  } else {
+    
+    setActiveRecipientId(memberId);
   }
+};
+
 
   if (!username) {
     return (
@@ -395,12 +424,121 @@ function ChatRoom() {
                 <div style={{ fontSize: '0.85em', color: '#888' }}>
                   <strong>Members: </strong>
 
-                  {participants.map((m, i) => (
-                    <span key={m.id || m}>
-                      {typeof m === 'string' ? getRecipientName(m) : m.name}
-                      {i < participants.length - 1 ? ', ' : ''}
-                    </span>
-                  ))}
+            
+
+                  {/* <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '8px' }}>
+  {participants.map((m, i) => {
+    const memberId = typeof m === 'string' ? m : m.id;
+    const memberName = typeof m === 'string' ? getRecipientName(m) : m.name;
+
+    return (
+      <div
+        key={memberId}
+        onClick={() => handleParticipantAction(memberId, memberName)}
+        style={{
+          backgroundColor: '#007bff',
+          color: 'white',
+          padding: '4px 12px',
+          borderRadius: '20px',
+          fontSize: '0.85em',
+          cursor: 'pointer',
+          display: 'flex',
+          alignItems: 'center',
+          border: '1px solid #0056b3',
+          transition: 'transform 0.1s',
+        }}
+        onMouseOver={(e) => (e.currentTarget.style.transform = 'scale(1.05)')}
+        onMouseOut={(e) => (e.currentTarget.style.transform = 'scale(1)')}
+      >
+        {memberName}
+       
+        {isCreator && memberId !== socket.id && (
+          <span style={{ marginLeft: '8px', fontWeight: 'bold', fontSize: '1.1em' }}>×</span>
+        )}
+      </div>
+    );
+  })}
+</div> */}
+
+<div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '10px' }}>
+  {participants.map((m) => {
+    // 1. Get the member's ID and Name
+    const memberId = typeof m === 'string' ? m : m.id;
+    const memberName = typeof m === 'string' ? getRecipientName(m) : m.name;
+
+    return (
+      <div key={memberId} style={{ position: 'relative' }}>
+        {/* THE BLUE PILL */}
+        <div
+          onClick={(e) => {
+            e.stopPropagation(); // Stop click from closing other things
+            // If already open, close it. If closed, open it.
+            setActiveMenuId(activeMenuId === memberId ? null : memberId);
+          }}
+          style={{
+            backgroundColor: '#007bff',
+            color: 'white',
+            padding: '5px 15px',
+            borderRadius: '20px',
+            fontSize: '0.85em',
+            cursor: 'pointer',
+            border: '1px solid #0056b3',
+            display: 'flex',
+            alignItems: 'center'
+          }}
+        >
+          {memberName} {memberId !== socket.id && <span style={{ marginLeft: '8px', fontSize: '0.7em' }}>▼</span>}
+        </div>
+
+        {/* THE POPOVER MENU (Only shows when activeMenuId matches) */}
+        {activeMenuId === memberId && memberId !== socket.id && (
+          <div style={{
+            position: 'absolute',
+            top: '35px',
+            left: '0',
+            backgroundColor: 'white',
+            boxShadow: '0px 4px 10px rgba(0,0,0,0.2)',
+            borderRadius: '8px',
+            zIndex: 100,
+            minWidth: '160px',
+            border: '1px solid #ddd',
+            overflow: 'hidden'
+          }}>
+            {/* Option 1: Open Private Chat */}
+            <button 
+              onClick={() => {
+                setActiveRecipientId(memberId);
+                setActiveMenuId(null); 
+              }}
+              style={{ display: 'block', width: '100%', padding: '10px', textAlign: 'left', border: 'none', background: 'none', cursor: 'pointer', borderBottom: '1px solid #eee' }}
+            >
+               Private Message
+            </button>
+
+            {/* Option 2: Remove (Only visible to Creator) */}
+            {isCreator && (
+              <button 
+                onClick={() => {
+                  socket.emit('updateGroupMembers', { 
+                    roomId: activeRecipientId, 
+                    userId: memberId, 
+                    action: 'remove' 
+                  });
+                  setActiveMenuId(null); 
+                }}
+                style={{ display: 'block', width: '100%', padding: '10px', textAlign: 'left', border: 'none', background: 'none', color: 'red', cursor: 'pointer' }}
+              >
+                Remove 
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+    );
+  })}
+</div>
+
+
 
                   {isCreator && (
                     <button
