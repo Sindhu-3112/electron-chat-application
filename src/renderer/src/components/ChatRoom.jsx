@@ -2,24 +2,26 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { socket } from '../socket'
 import { v4 as uuidv4 } from 'uuid'
 
-const storageKey = 'reactChatSession'
-const getStoredSession = () =>
-  JSON.parse(localStorage.getItem(storageKey)) || { username: null, histories: {} }
-const setStoredSession = (data) => localStorage.setItem(storageKey, JSON.stringify(data))
+// const storageKey = 'reactChatSession'
+// const getStoredSession = () =>
+//   JSON.parse(localStorage.getItem(storageKey)) || { username: null, histories: {} }
+// const setStoredSession = (data) => localStorage.setItem(storageKey, JSON.stringify(data))
 
 function ChatRoom() {
   const [input, setInput] = useState('')
-  const [sessionData] = useState(getStoredSession())
-  const [username, setUsername] = useState(sessionData.username)
+  // const [sessionData] = useState(getStoredSession())
+  const [username, setUsername] =useState(null);
   const [connectedUsers, setConnectedUsers] = useState([])
   const [selectedUsers, setSelectedUsers] = useState([])
   const [isCreatingGroup, setIsCreatingGroup] = useState(false)
   const [activeRecipientId, setActiveRecipientId] = useState(null)
-  const [allChatMessages, setAllChatMessages] = useState(sessionData.histories)
+  // const [allChatMessages, setAllChatMessages] = useState(sessionData.histories)
+  const [allChatMessages,setAllChatMessages] = useState({})
   const [roomMembers, setRoomMembers] = useState({})
   const [isAddingMember, setIsAddingMember] = useState(false)
   const [selectedNewMembers, setSelectedNewMembers] = useState([])
   const [activeMenuId, setActiveMenuId] = useState(null);
+  const [isLoaded, setIsLoaded] = useState(false);
 
   const currentGroupMembers = roomMembers[activeRecipientId] || []
   const availableUsersToAdd = connectedUsers.filter(
@@ -37,22 +39,44 @@ function ChatRoom() {
   const isCreator = activeRoom?.isGroup && activeRoom?.creator === socket.id
   const participants = roomMembers[activeRecipientId] || activeRoom?.members || []
 
-  
+ 
+  const saveToElectronStore = async (newUsername, newHistories) => {
+  if (!window.electronAPI) return;
+  await window.electronAPI.setStoreData('username', newUsername);
+  await window.electronAPI.setStoreData('histories', newHistories);
+};
+const saveToStore = async (newUsername, newHistories) => {
+  const data = { username: newUsername, histories: newHistories };
+
+  if (window.electronAPI) {
+    // ELECTRON: Save to physical file
+    await window.electronAPI.setStoreData('reactChatSession', data);
+  } else {
+    // BROWSER: Save to browser storage
+    localStorage.setItem('reactChatSession', JSON.stringify(data));
+  }
+};
+
+
 
   const scrollToBottom = () => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
 
   const addMessageToHistory = useCallback(
-    (message, chatId) => {
-      setAllChatMessages((prevHistories) => {
-        const updatedMessagesForChat = [...(prevHistories[chatId] || []), message]
-        const updatedHistories = { ...prevHistories, [chatId]: updatedMessagesForChat }
-        setStoredSession({ username: username, histories: updatedHistories })
-        return updatedHistories
-      })
-    },
-    [username]
-  )
+  (message, chatId) => {
+    setAllChatMessages((prevHistories) => {
+      const updatedMessagesForChat = [...(prevHistories[chatId] || []), message];
+      const updatedHistories = { ...prevHistories, [chatId]: updatedMessagesForChat };
 
+       saveToStore(username, updatedHistories); // ✅ persist to Electron Store
+
+      return updatedHistories;
+    });
+  },
+  [username]
+);
+
+  
+  // To update group members when users added or removed from group
   useEffect(() => {
     socket.on('updateRoomParticipants', ({ roomId, members }) => {
       setRoomMembers((prev) => ({
@@ -65,6 +89,8 @@ function ChatRoom() {
       socket.off('updateRoomParticipants')
     }
   }, [])
+
+  //To send username to the socket server and handle incoming events
 
   useEffect(() => {
     if (username) socket.emit('registerName', username)
@@ -94,7 +120,8 @@ function ChatRoom() {
   useEffect(() => {
     scrollToBottom()
   }, [allChatMessages, activeRecipientId])
-
+  
+  //To handle when new user added to the existing group
   useEffect(() => {
     socket.on('invitedToGroup', (groupData) => {
       socket.emit('joinGroupRoom', groupData.roomId)
@@ -113,7 +140,8 @@ function ChatRoom() {
         ]
       })
     })
-
+    
+  
     socket.on('updateRoomParticipants', ({ roomId, members }) => {
       setRoomMembers((prev) => ({ ...prev, [roomId]: members }))
 
@@ -125,13 +153,14 @@ function ChatRoom() {
     })
   }, [])
 
+   //To handle when user entered the group previous messages are not loaded
   useEffect(() => {
     socket.on('invitedToGroup', (groupData) => {
       const { roomId, groupName, creator, members } = groupData
       socket.emit('joinGroupRoom', roomId)
 
       setConnectedUsers((prev) => {
-        // Avoid duplicates
+       
         if (prev.find((u) => u.id === roomId)) return prev
 
         return [
@@ -157,6 +186,8 @@ function ChatRoom() {
     }
   }, [addMessageToHistory])
 
+  //To handle when the user removed from the group
+
   useEffect(() => {
     socket.on('removedFromGroup', ({ roomId }) => {
       
@@ -173,7 +204,37 @@ function ChatRoom() {
 }, [activeRecipientId]);
 
 
-  const handleCreateGroupSubmit = () => {
+
+
+ // To handle creating a new group with selected user and named the group
+
+
+useEffect(() => {
+  const loadData = async () => {
+    let session;
+
+    if (window.electronAPI) {
+      // ELECTRON: Load from file
+      session = await window.electronAPI.getStoreData('reactChatSession');
+    } else {
+      // BROWSER: Load from localStorage
+      const localData = localStorage.getItem('reactChatSession');
+      session = localData ? JSON.parse(localData) : null;
+    }
+
+    if (session) {
+      if (session.username) setUsername(session.username);
+      if (session.histories) setAllChatMessages(session.histories);
+    }
+    setIsLoaded(true);
+  };
+
+  loadData();
+}, []);
+
+//To handle creating the group 
+ 
+ const handleCreateGroupSubmit = () => {
     if (selectedUsers.length > 0) {
       const groupName = prompt('Enter Group Name:')
       if (groupName) {
@@ -186,6 +247,7 @@ function ChatRoom() {
       }
     }
   }
+  //To handle sending messages to private and group chat from the input box
 
   const sendMessage = (e) => {
     e.preventDefault()
@@ -206,28 +268,35 @@ function ChatRoom() {
       setInput('')
     }
   }
+  
+  //To handle user name submission
+
+
 
   const handleNameSubmit = (e) => {
-    e.preventDefault()
-    const name = input.trim()
-    if (name) {
-      setUsername(name)
-      socket.emit('registerName', name)
-      setInput('')
-      setStoredSession({ username: name, histories: allChatMessages })
-    }
-  }
+  e.preventDefault();
+  const name = input.trim();
 
-  const handleLogout = () => {
-    localStorage.removeItem(storageKey)
-    window.location.reload()
+  if (name) {
+    setUsername(name);
+    socket.emit('registerName', name);
+     saveToStore(name, allChatMessages); // ✅
   }
+};
 
+ 
+   const handleLogout = () => {
+    setUsername(null);
+    setAllChatMessages({ 'PUBLIC': [] });
+    window.electronAPI.clearStore(); // Clear physical file
+    window.location.reload();
+  };
+  //To get recipient name either group or private chat
   const getRecipientName = (id) => {
     const user = connectedUsers.find((u) => u.id === id)
-    return user ? user.name : `Offline User (${id.substring(0, 5)})`
+    return user ? user.name :'unknown user'
   }
-
+  //To format time from ISO string to readable format which is used for timestamp
   const formatTime = (isoString) => {
     if (!isoString) return ''
     return new Date(isoString).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
@@ -260,7 +329,8 @@ function ChatRoom() {
   }
 };
 
-
+ if (!isLoaded) return <div>Loading...</div>;
+  // To display welcome screen initially when chat box not opened
   if (!username) {
     return (
       <div
@@ -342,7 +412,7 @@ function ChatRoom() {
                 cursor: 'pointer'
               }}
             >
-              {' '}
+            
               {isCreatingGroup && !user.isGroup && (
                 <input
                   type="checkbox"
@@ -426,53 +496,21 @@ function ChatRoom() {
 
             
 
-                  {/* <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '8px' }}>
-  {participants.map((m, i) => {
-    const memberId = typeof m === 'string' ? m : m.id;
-    const memberName = typeof m === 'string' ? getRecipientName(m) : m.name;
-
-    return (
-      <div
-        key={memberId}
-        onClick={() => handleParticipantAction(memberId, memberName)}
-        style={{
-          backgroundColor: '#007bff',
-          color: 'white',
-          padding: '4px 12px',
-          borderRadius: '20px',
-          fontSize: '0.85em',
-          cursor: 'pointer',
-          display: 'flex',
-          alignItems: 'center',
-          border: '1px solid #0056b3',
-          transition: 'transform 0.1s',
-        }}
-        onMouseOver={(e) => (e.currentTarget.style.transform = 'scale(1.05)')}
-        onMouseOut={(e) => (e.currentTarget.style.transform = 'scale(1)')}
-      >
-        {memberName}
-       
-        {isCreator && memberId !== socket.id && (
-          <span style={{ marginLeft: '8px', fontWeight: 'bold', fontSize: '1.1em' }}>×</span>
-        )}
-      </div>
-    );
-  })}
-</div> */}
+                 
 
 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '10px' }}>
   {participants.map((m) => {
-    // 1. Get the member's ID and Name
+   
     const memberId = typeof m === 'string' ? m : m.id;
     const memberName = typeof m === 'string' ? getRecipientName(m) : m.name;
 
     return (
       <div key={memberId} style={{ position: 'relative' }}>
-        {/* THE BLUE PILL */}
+      
         <div
           onClick={(e) => {
-            e.stopPropagation(); // Stop click from closing other things
-            // If already open, close it. If closed, open it.
+            e.stopPropagation(); 
+           
             setActiveMenuId(activeMenuId === memberId ? null : memberId);
           }}
           style={{
@@ -490,7 +528,7 @@ function ChatRoom() {
           {memberName} {memberId !== socket.id && <span style={{ marginLeft: '8px', fontSize: '0.7em' }}>▼</span>}
         </div>
 
-        {/* THE POPOVER MENU (Only shows when activeMenuId matches) */}
+      
         {activeMenuId === memberId && memberId !== socket.id && (
           <div style={{
             position: 'absolute',
@@ -504,7 +542,7 @@ function ChatRoom() {
             border: '1px solid #ddd',
             overflow: 'hidden'
           }}>
-            {/* Option 1: Open Private Chat */}
+            
             <button 
               onClick={() => {
                 setActiveRecipientId(memberId);
@@ -515,7 +553,7 @@ function ChatRoom() {
                Private Message
             </button>
 
-            {/* Option 2: Remove (Only visible to Creator) */}
+          
             {isCreator && (
               <button 
                 onClick={() => {
@@ -534,7 +572,7 @@ function ChatRoom() {
           </div>
         )}
       </div>
-    );
+    )
   })}
 </div>
 

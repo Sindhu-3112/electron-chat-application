@@ -3,7 +3,11 @@ import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
 import path from 'path'
+// const Store = require('electron-store');
 
+import StorePackage from 'electron-store'
+const Store = StorePackage.default || StorePackage
+const store = new Store();
 let tray
 let mainWindow
 
@@ -42,6 +46,18 @@ mainWindow = new BrowserWindow({
     event.preventDefault()
     mainWindow.hide()
   })
+
+  ipcMain.handle('get-store-data', (event, key) => {
+  return store.get(key);
+});
+
+ipcMain.on('set-store-data', (event, key, value) => {
+  store.set(key, value);
+});
+
+ipcMain.on('clear-store', () => {
+  store.clear();
+});
 }
 
 function createTray() {
