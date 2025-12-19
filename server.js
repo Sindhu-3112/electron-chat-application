@@ -40,12 +40,19 @@ io.on('connection', (socket) => {
  socket.on('sendPrivateMessage', (data) => {
     const { recipientId, message } = data;
     if (message && recipientId && message.text) {
-       message.timestamp = new Date().toISOString(); 
+       message.timestamp = new Date().toISOString();
+        const senderName = connectedUsers[socket.id]; 
       console.log(`[PRIVATE MSG] from ${message.user} (${socket.id}) to (${recipientId}): "${message.text}"`);
 
       
       socket.to(recipientId).emit('receivePrivateMessage', { senderId: socket.id, senderName: connectedUsers[socket.id], message });
       
+       io.to(recipientId).emit('newNotification', {
+      from: senderName,
+      text: message.text,
+      chatId: socket.id // The ID needed to open the correct chat window
+    });
+     console.log(`[NOTIFICATION DEBUG] Private notification sent to ${recipientId} from ${senderName}`);
 
       socket.emit('receivePrivateMessage', { senderId: socket.id, message });
 
@@ -68,6 +75,7 @@ socket.on('createGroup', (data) => {
     
      roomMetadata[roomId] = {
         creator: socket.id,
+         admins: [socket.id], 
         members: userIds 
     };
     
@@ -82,6 +90,24 @@ socket.on('createGroup', (data) => {
 
     console.log(`[GROUP] "${groupName}" created by ${socket.id}. Room ID: ${roomId}`);
 });
+socket.on('toggleAdmin', (data) => {
+    const { roomId, userId, action } = data; // action: 'add' or 'remove'
+    const room = roomMetadata[roomId];
+
+    // Only existing admins (including creator) can promote/demote others
+    if (room && room.admins.includes(socket.id)) {
+        if (action === 'add' && !room.admins.includes(userId)) {
+            room.admins.push(userId);
+        } else if (action === 'remove' && userId !== room.creator) {
+            // Demote user, but never allow demoting the creator
+            room.admins = room.admins.filter(id => id !== userId);
+        }
+
+        // Notify everyone in the room about the updated admin list
+        io.to(roomId).emit('updateAdminList', { roomId, admins: room.admins });
+    }
+});
+
 
 socket.on('joinGroupRoom', (roomId) => {
     socket.join(roomId);
@@ -102,6 +128,13 @@ socket.on('sendGroupMessage', (data) => {
     
     io.to(roomId).emit('receiveGroupMessage', { roomId, message });
     console.log(`[GROUP MSG] in ${roomId}: ${message.text}`);
+
+     socket.to(roomId).emit('newNotification', {
+      from: `${message.user} (Group)`,
+      text: message.text,
+      chatId: roomId
+    });
+     console.log(`[NOTIFICATION DEBUG] Group notification sent to room ${roomId} from ${message.user}`);
 });
 
 
@@ -181,6 +214,7 @@ if (action === 'remove') {
 
 
 });
+
 
 
 

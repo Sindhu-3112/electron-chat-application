@@ -907,33 +907,12 @@ useEffect(() => {
   </div>
 ) : (
   <form onSubmit={sendMessage}>
-    <input
-                type="text"
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                placeholder="Type a message..."
-                style={{
-                  flexGrow: 1,
-                  padding: '12px',
-                  borderRadius: '25px',
-                  border: '1px solid #ccc',
-                  outline: 'none'
-                }}
-              />
-    <button
-                type="submit"
-                style={{
-                  marginLeft: '10px',
-                  padding: '10px 20px',
-                  borderRadius: '25px',
-                  background: '#007bff',
-                  color: 'white',
-                  border: 'none',
-                  cursor: 'pointer'
-                }}
-              >
-                Send
-              </button>
+    <input 
+      value={input} 
+      onChange={(e) => setInput(e.target.value)} 
+      placeholder="Type a message..." 
+    />
+    <button type="submit">Send</button>
   </form>
 )}
 
