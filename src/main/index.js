@@ -1,8 +1,12 @@
-import { app, shell, BrowserWindow, Tray,  Menu, ipcMain,session } from 'electron'
+import { app, shell, BrowserWindow, Tray,  Menu, ipcMain,session , Notification } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
 import path from 'path'
+import { io } from 'socket.io-client';
+// const io = require('socket.io-client');
+// const socket = io('http://localhost:4000');
+
 // const Store = require('electron-store');
 
 import StorePackage from 'electron-store'
@@ -10,7 +14,10 @@ const Store = StorePackage.default || StorePackage
 const store = new Store();
 let tray
 let mainWindow
+let socket
+let currentNotification;
 
+app.setAppUserModelId(' com.electron.app') 
 function createWindow() {
 
 mainWindow = new BrowserWindow({
@@ -25,6 +32,36 @@ mainWindow = new BrowserWindow({
     }
   })
 
+  socket = io('http://localhost:4000');
+
+  socket.on('connect', () => {
+    console.log('Main process connected to socket');
+  });
+
+
+  socket.on('receivePrivateMessage', (data) => {
+  const { senderName, message } = data;
+
+  if (!mainWindow.isVisible() || !mainWindow.isFocused()) {
+    // Check if notifications are even supported
+    if (Notification.isSupported()) {
+     currentNotification = new Notification({
+        title: `New message from ${senderName}`,
+        body: message.text,
+        silent: false, 
+        icon: path.join(__dirname, '../../resources/icon.png')
+      });
+
+      currentNotification.show();
+
+      // Optional: Show window when notification is clicked
+      currentNotification.on('click', () => {
+        mainWindow.show();
+        mainWindow.focus();
+      });
+    }
+  }
+});
 
 
   mainWindow.on('ready-to-show', () => {
@@ -58,6 +95,9 @@ ipcMain.on('set-store-data', (event, key, value) => {
 ipcMain.on('clear-store', () => {
   store.clear();
 });
+ ipcMain.on('register-socket-user', (event, username) => {
+    socket.emit('registerName', username);
+  });
 }
 
 function createTray() {

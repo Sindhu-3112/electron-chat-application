@@ -37,29 +37,14 @@ io.on('connection', (socket) => {
   });
 
   socket.emit('messageHistory', publicMessageHistory);
-
- 
-  // socket.on('sendPublicMessage', (message) => {
-  //   if (message && message.text) {
-  //      message.timestamp = new Date().toISOString(); 
-  //     console.log(`[PUBLIC MSG] from ${message.user} (${socket.id}): "${message.text}"`);
-  //     publicMessageHistory.push(message);
-  //     io.emit('receivePublicMessage', message); 
-  //   }
-  // });
-  
-  
-
-
- 
-  socket.on('sendPrivateMessage', (data) => {
+ socket.on('sendPrivateMessage', (data) => {
     const { recipientId, message } = data;
     if (message && recipientId && message.text) {
        message.timestamp = new Date().toISOString(); 
       console.log(`[PRIVATE MSG] from ${message.user} (${socket.id}) to (${recipientId}): "${message.text}"`);
 
       
-      socket.to(recipientId).emit('receivePrivateMessage', { senderId: socket.id, message });
+      socket.to(recipientId).emit('receivePrivateMessage', { senderId: socket.id, senderName: connectedUsers[socket.id], message });
       
 
       socket.emit('receivePrivateMessage', { senderId: socket.id, message });
@@ -119,18 +104,6 @@ socket.on('sendGroupMessage', (data) => {
     console.log(`[GROUP MSG] in ${roomId}: ${message.text}`);
 });
 
-
-// socket.on('add_user_to_group', ({ roomId, userIdToAdd }) => {
-//   const targetSocketId = findSocketIdByUserId(userIdToAdd); // Helper to find their ID
-//   if (targetSocketId) {
-//     const targetSocket = io.sockets.sockets.get(targetSocketId);
-//     targetSocket.join(roomId);
-
-//     // Notify all participants of updated list
-//     const participants = Array.from(io.sockets.adapter.rooms.get(roomId) || []);
-//     io.to(roomId).emit('update_participants', { roomId, participants });
-//   }
-// });
 
 socket.on('invitedToGroup', (groupData) => {
     const { roomId, groupName, creator, members } = groupData;

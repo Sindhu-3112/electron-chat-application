@@ -22,6 +22,7 @@ function ChatRoom() {
   const [selectedNewMembers, setSelectedNewMembers] = useState([])
   const [activeMenuId, setActiveMenuId] = useState(null);
   const [isLoaded, setIsLoaded] = useState(false);
+  const [unreadCounts, setUnreadCounts] = useState({});
 
   const currentGroupMembers = roomMembers[activeRecipientId] || []
   const availableUsersToAdd = connectedUsers.filter(
@@ -108,7 +109,14 @@ const saveToStore = async (newUsername, newHistories) => {
       if (senderId !== socket.id) {
         addMessageToHistory({ ...message, isPrivate: true }, senderId)
       }
+       if (senderId !== activeRecipientId) {
+    setUnreadCounts((prev) => ({
+      ...prev,
+      [senderId]: (prev[senderId] || 0) + 1
+    }));
+  }
     })
+    
 
     return () => {
       socket.off('connect')
@@ -177,6 +185,14 @@ const saveToStore = async (newUsername, newHistories) => {
     })
 
     socket.on('receiveGroupMessage', (data) => {
+      const { roomId, message } = data;
+
+  if (roomId !== activeRecipientId) {
+    setUnreadCounts((prev) => ({
+      ...prev,
+      [roomId]: (prev[roomId] || 0) + 1
+    }));
+  }
       addMessageToHistory({ ...data.message, isGroup: true }, data.roomId)
     })
 
@@ -203,6 +219,14 @@ const saveToStore = async (newUsername, newHistories) => {
     return () => socket.off('removedFromGroup');
 }, [activeRecipientId]);
 
+useEffect(() => {
+  if (activeRecipientId) {
+    setUnreadCounts((prev) => ({
+      ...prev,
+      [activeRecipientId]: 0
+    }));
+  }
+}, [activeRecipientId]);
 
 
 
@@ -268,6 +292,18 @@ useEffect(() => {
       setInput('')
     }
   }
+
+  useEffect(() => {
+  // Listen for data forwarded from main.js
+  const handleMainMessage = (event, data) => {
+    addMessageToHistory(data.message, data.senderId);
+  };
+
+  if (window.electronAPI) {
+    window.electronAPI.onSocketData(handleMainMessage);
+  }
+}, [addMessageToHistory]);
+
   
   //To handle user name submission
 
@@ -280,6 +316,7 @@ useEffect(() => {
   if (name) {
     setUsername(name);
     socket.emit('registerName', name);
+     window.electronAPI.registerSocketUser(name);
      saveToStore(name, allChatMessages); // ✅
   }
 };
@@ -423,6 +460,23 @@ useEffect(() => {
                 />
               )}
               {user.name}
+
+               {unreadCounts[user.id] > 0 && activeRecipientId !== user.id && (
+      <span
+        style={{
+          backgroundColor: '#007bff', 
+          color: 'white',
+          borderRadius: '50%',
+          padding: '2px 8px',
+          fontSize: '12px',
+          fontWeight: 'bold',
+          minWidth: '20px',
+          textAlign: 'center'
+        }}
+      >
+        {unreadCounts[user.id]}
+      </span>
+    )}
             </button>
           ))
         )}
