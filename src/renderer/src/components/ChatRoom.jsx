@@ -23,6 +23,8 @@ function ChatRoom() {
   const [activeMenuId, setActiveMenuId] = useState(null);
   const [isLoaded, setIsLoaded] = useState(false);
   const [unreadCounts, setUnreadCounts] = useState({});
+  const [disabledGroups, setDisabledGroups] = useState([]);
+
 
   const currentGroupMembers = roomMembers[activeRecipientId] || []
   const availableUsersToAdd = connectedUsers.filter(
@@ -204,21 +206,35 @@ const saveToStore = async (newUsername, newHistories) => {
 
   //To handle when the user removed from the group
 
-  useEffect(() => {
-    socket.on('removedFromGroup', ({ roomId }) => {
+//   useEffect(() => {
+//     socket.on('removedFromGroup', ({ roomId }) => {
       
-        setConnectedUsers(prev => prev.filter(c => c.id !== roomId));
+//         setConnectedUsers(prev => prev.filter(c => c.id !== roomId));
         
        
-        if (activeRecipientId === roomId) {
-            setActiveRecipientId(null);
-            alert("You have been removed from the group.");
-        }
-    });
+//         if (activeRecipientId === roomId) {
+//             setActiveRecipientId(null);
+//             alert("You have been removed from the group.");
+//         }
+//     });
 
-    return () => socket.off('removedFromGroup');
+//     return () => socket.off('removedFromGroup');
+// }, [activeRecipientId]);
+
+useEffect(() => {
+  socket.on('removedFromGroup', ({ roomId }) => {
+    // DO NOT filter connectedUsers anymore. 
+    // Just mark it as disabled.
+    setDisabledGroups((prev) => [...prev, roomId]);
+    
+    // Optional: alert the user
+    if (activeRecipientId === roomId) {
+       alert("You have been removed from this group. You can still view history.");
+    }
+  });
+
+  return () => socket.off('removedFromGroup');
 }, [activeRecipientId]);
-
 useEffect(() => {
   if (activeRecipientId) {
     setUnreadCounts((prev) => ({
@@ -255,6 +271,15 @@ useEffect(() => {
 
   loadData();
 }, []);
+
+useEffect(() => {
+    socket.on('groupDisabled', ({ roomId }) => {
+        setDisabledGroups(prev => [...prev, roomId]);
+    });
+
+    return () => socket.off('groupDisabled');
+}, []);
+
 
 //To handle creating the group 
  
@@ -429,10 +454,11 @@ useEffect(() => {
           </button>
         )}
         <hr />
-        {connectedUsers.length === 0 ? (
+        {/* {connectedUsers.length === 0 ? (
           <p style={{ color: 'gray' }}>No users</p>
         ) : (
           connectedUsers.map((user) => (
+            
             <button
               key={user.id}
               onClick={() => setActiveRecipientId(user.id)}
@@ -479,7 +505,75 @@ useEffect(() => {
     )}
             </button>
           ))
-        )}
+        )} */}
+        {connectedUsers.length === 0 ? (
+  <p style={{ color: 'gray' }}>No users</p>
+) : (
+  connectedUsers.map((user) => {
+    const isDisabled = disabledGroups.includes(user.id);
+
+    return (
+      <button
+        key={user.id}
+        onClick={() => setActiveRecipientId(user.id)}
+        style={{
+          display: 'block',
+          width: '100%',
+          padding: '10px',
+          marginBottom: '5px',
+          textAlign: 'left',
+          background: activeRecipientId === user.id ? '#007bff' : 'transparent',
+          color: activeRecipientId === user.id ? 'white' : isDisabled ? '#888' : 'black',
+          border: '1px solid #ddd',
+          borderRadius: '5px',
+          cursor: 'pointer',
+          borderLeft: isDisabled ? '5px solid #ccc' : '1px solid #ddd',
+          opacity: isDisabled ? 0.7 : 1
+        }}
+      >
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div style={{ display: 'flex', alignItems: 'center' }}>
+            {/* Checkbox for Group Creation - Only shows if not a group and not disabled */}
+            {isCreatingGroup && !user.isGroup && !isDisabled && (
+              <input
+                type="checkbox"
+                style={{ marginRight: '10px' }}
+                onChange={(e) => {
+                  if (e.target.checked) setSelectedUsers([...selectedUsers, user.id])
+                  else setSelectedUsers(selectedUsers.filter((id) => id !== user.id))
+                }}
+              />
+            )}
+            
+            <span>
+              {user.name} 
+              {isDisabled && <small style={{ marginLeft: '5px', fontStyle: 'italic' }}>(Removed)</small>}
+            </span>
+          </div>
+
+          {/* Unread Message Badge */}
+          {unreadCounts[user.id] > 0 && activeRecipientId !== user.id && (
+            <span
+              style={{
+                backgroundColor: activeRecipientId === user.id ? 'white' : '#007bff',
+                color: activeRecipientId === user.id ? '#007bff' : 'white',
+                borderRadius: '50%',
+                padding: '2px 8px',
+                fontSize: '11px',
+                fontWeight: 'bold',
+                minWidth: '18px',
+                textAlign: 'center'
+              }}
+            >
+              {unreadCounts[user.id]}
+            </span>
+          )}
+        </div>
+      </button>
+    );
+  })
+)}
+
       </div>
 
       {/* Main Area */}
@@ -806,7 +900,44 @@ useEffect(() => {
               <div ref={messagesEndRef} />
             </div>
 
-            <form
+             {/* In your message input rendering logic */}
+{disabledGroups.includes(activeRecipientId) ? (
+  <div style={{ padding: '10px', backgroundColor: '#eee', textAlign: 'center', color: '#666' }}>
+    You are no longer a member of this group. You can only view the history.
+  </div>
+) : (
+  <form onSubmit={sendMessage}>
+    <input
+                type="text"
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                placeholder="Type a message..."
+                style={{
+                  flexGrow: 1,
+                  padding: '12px',
+                  borderRadius: '25px',
+                  border: '1px solid #ccc',
+                  outline: 'none'
+                }}
+              />
+    <button
+                type="submit"
+                style={{
+                  marginLeft: '10px',
+                  padding: '10px 20px',
+                  borderRadius: '25px',
+                  background: '#007bff',
+                  color: 'white',
+                  border: 'none',
+                  cursor: 'pointer'
+                }}
+              >
+                Send
+              </button>
+  </form>
+)}
+
+            {/* <form
               onSubmit={sendMessage}
               style={{ padding: '20px', borderTop: '1px solid #ccc', display: 'flex' }}
             >
@@ -837,7 +968,7 @@ useEffect(() => {
               >
                 Send
               </button>
-            </form>
+            </form> */}
           </>
         )}
       </div>
