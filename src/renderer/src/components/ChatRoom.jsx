@@ -24,6 +24,9 @@ function ChatRoom() {
   const [isLoaded, setIsLoaded] = useState(false);
   const [unreadCounts, setUnreadCounts] = useState({});
   const [disabledGroups, setDisabledGroups] = useState([]);
+  const [isGroupNameModalOpen, setIsGroupNameModalOpen] = useState(false);
+  const [tempGroupName, setTempGroupName] = useState('');
+
 
 
   const currentGroupMembers = roomMembers[activeRecipientId] || []
@@ -308,19 +311,28 @@ useEffect(() => {
 
 //To handle creating the group 
  
- const handleCreateGroupSubmit = () => {
-    if (selectedUsers.length > 0) {
-      const groupName = prompt('Enter Group Name:')
-      if (groupName) {
-        socket.emit('createGroup', {
-          groupName,
-          userIds: [...selectedUsers, socket.id]
-        })
-        setIsCreatingGroup(false)
-        setSelectedUsers([])
-      }
-    }
+
+const handleCreateGroupSubmit = () => {
+  if (selectedUsers.length > 0) {
+    setIsGroupNameModalOpen(true);
   }
+};
+
+const finalizeGroupCreation = () => {
+  if (tempGroupName.trim()) {
+    socket.emit('createGroup', {
+      groupName: tempGroupName,
+      userIds: [...selectedUsers, socket.id]
+    });
+    
+    // Reset everything
+    setIsCreatingGroup(false);
+    setIsGroupNameModalOpen(false);
+    setSelectedUsers([]);
+    setTempGroupName('');
+  }
+};
+
   //To handle sending messages to private and group chat from the input box
 
   const sendMessage = (e) => {
@@ -928,8 +940,8 @@ useEffect(() => {
       width: '100%' 
     }}>
       <span style={{ 
-        backgroundColor: '#e1f3fb', // Light blue background
-        color: '#54656f',           // Dark gray text
+        backgroundColor: '#e1f3fb',
+        color: '#54656f',          
         padding: '5px 12px', 
         borderRadius: '8px',
         fontSize: '0.8em',
@@ -1043,6 +1055,54 @@ useEffect(() => {
           </>
         )}
       </div>
+
+      {isGroupNameModalOpen && (
+  <div style={{
+    position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+    background: 'rgba(0,0,0,0.5)', display: 'flex',
+    justifyContent: 'center', alignItems: 'center', zIndex: 2000
+  }}>
+    <div style={{
+      background: 'white', padding: '20px', borderRadius: '12px',
+      width: '320px', boxShadow: '0 4px 15px rgba(0,0,0,0.3)'
+    }}>
+      <h3 style={{ marginTop: 0 }}>Group Name</h3>
+      <input
+        type="text"
+        placeholder="Enter group name..."
+        value={tempGroupName}
+        onChange={(e) => setTempGroupName(e.target.value)}
+        autoFocus
+        style={{
+          width: '100%', padding: '10px', marginBottom: '20px',
+          borderRadius: '6px', border: '1px solid #ccc', boxSizing: 'border-box'
+        }}
+        onKeyDown={(e) => e.key === 'Enter' && finalizeGroupCreation()}
+      />
+      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+        <button 
+          onClick={() => setIsGroupNameModalOpen(false)}
+          style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#666' }}
+        >
+          Cancel
+        </button>
+        <button 
+          onClick={finalizeGroupCreation}
+          disabled={!tempGroupName.trim()}
+          style={{
+            padding: '8px 20px', background: '#007bff', color: 'white',
+            borderRadius: '6px', border: 'none', 
+            cursor: tempGroupName.trim() ? 'pointer' : 'not-allowed',
+            opacity: tempGroupName.trim() ? 1 : 0.5
+          }}
+        >
+          Create
+        </button>
+      </div>
+    </div>
+  </div>
+)}
+
     </div>
   )
 }

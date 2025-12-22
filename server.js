@@ -161,7 +161,20 @@ socket.on('updateGroupMembers', (data) => {
 
     
     if (room && room.creator === socket.id) {
+        
         if (action === 'add') {
+             const addedUserName = connectedUsers[userId] || "A user";
+             const adminName = connectedUsers[socket.id];
+     io.to(roomId).emit('receiveGroupMessage', { 
+        roomId, 
+        message: {
+            text: `${adminName} added  ${addedUserName}`,
+            user: "System",
+            timestamp: new Date().toISOString(),
+            isSystem: true 
+        }
+    });
+    console.log (`USER ADDED  ${addedUserName} `);
           
             const targetSocket = io.sockets.sockets.get(userId);
             
