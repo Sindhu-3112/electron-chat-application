@@ -356,9 +356,6 @@ useEffect(() => {
 
   
   //To handle user name submission
-
-
-
   const handleNameSubmit = (e) => {
   e.preventDefault();
   const name = input.trim();
@@ -375,7 +372,7 @@ useEffect(() => {
    const handleLogout = () => {
     setUsername(null);
     setAllChatMessages({ 'PUBLIC': [] });
-    window.electronAPI.clearStore(); // Clear physical file
+    window.electronAPI.clearStore();
     window.location.reload();
   };
   //To get recipient name either group or private chat
@@ -582,7 +579,7 @@ useEffect(() => {
               style={{
                 backgroundColor: activeRecipientId === user.id ? 'white' : '#007bff',
                 color: activeRecipientId === user.id ? '#007bff' : 'white',
-                borderRadius: '50%',
+                borderRadius: '8px',
                 padding: '2px 8px',
                 fontSize: '11px',
                 fontWeight: 'bold',
@@ -876,7 +873,7 @@ useEffect(() => {
                 </div>
               )}
 
-              {(allChatMessages[activeRecipientId] || []).map((msg) => (
+              {/* {(allChatMessages[activeRecipientId] || []).map((msg,index) => (
                 <div
                   key={msg.id}
                   style={{
@@ -920,7 +917,77 @@ useEffect(() => {
                     </div>
                   </div>
                 </div>
-              ))}
+              ))} */}
+
+              {(allChatMessages[activeRecipientId] || []).map((msg, index) => (
+  msg.isSystem ? (
+    /* WhatsApp-style System Message */
+    <div key={index} style={{ 
+      textAlign: 'center', 
+      margin: '15px 0', 
+      width: '100%' 
+    }}>
+      <span style={{ 
+        backgroundColor: '#e1f3fb', // Light blue background
+        color: '#54656f',           // Dark gray text
+        padding: '5px 12px', 
+        borderRadius: '8px',
+        fontSize: '0.8em',
+        boxShadow: '0 1px 1px rgba(0,0,0,0.1)'
+      }}>
+        {msg.text}
+      </span>
+    </div>
+  ) : (
+    /* Your existing Chat Bubble Logic */
+   <div
+                  key={msg.id}
+                  style={{
+                    marginBottom: '10px',
+                    textAlign: msg.user === username ? 'right' : 'left'
+                  }}
+                >
+                  {activeRecipientId.startsWith('room_') && msg.user !== username && (
+                    <div
+                      style={{
+                        fontWeight: 'bold',
+                        fontSize: '0.75em',
+                        marginBottom: '4px',
+                        color: '#555'
+                      }}
+                    >
+                      {msg.user}
+                    </div>
+                  )}
+                  <div
+                    style={{
+                      display: 'inline-block',
+                      padding: '10px 15px',
+                      borderRadius: '18px',
+                      backgroundColor: msg.user === username ? '#007bff' : '#e9e9e9',
+                      color: msg.user === username ? 'white' : 'black',
+                      maxWidth: '70%',
+                      position: 'relative'
+                    }}
+                  >
+                    {msg.text}
+                    <div
+                      style={{
+                        fontSize: '0.65em',
+                        marginTop: '4px',
+                        textAlign: 'right',
+                        opacity: 0.7
+                      }}
+                    >
+                      {formatTime(msg.timestamp)}
+                    </div>
+                  </div>
+                </div>
+  )
+))}
+
+
+
 
               <div ref={messagesEndRef} />
             </div>

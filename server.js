@@ -184,6 +184,18 @@ socket.on('updateGroupMembers', (data) => {
         
        
 if (action === 'remove') {
+    const removedUserName = connectedUsers[userId] || "A user";
+    const adminName = connectedUsers[socket.id];
+     io.to(roomId).emit('receiveGroupMessage', { 
+        roomId, 
+        message: {
+            text: `${adminName} removed ${removedUserName}`,
+            user: "System",
+            timestamp: new Date().toISOString(),
+            isSystem: true 
+        }
+    });
+    console.log (`USER REMOVED  ${removedUserName} `);
     room.members = room.members.filter(id => id !== userId);
     
    
