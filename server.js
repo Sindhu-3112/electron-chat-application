@@ -50,7 +50,7 @@ io.on('connection', (socket) => {
        io.to(recipientId).emit('newNotification', {
       from: senderName,
       text: message.text,
-      chatId: socket.id // The ID needed to open the correct chat window
+      chatId: socket.id 
     });
      console.log(`[NOTIFICATION DEBUG] Private notification sent to ${recipientId} from ${senderName}`);
 

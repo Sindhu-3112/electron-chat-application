@@ -38,6 +38,13 @@ mainWindow = new BrowserWindow({
     console.log('Main process connected to socket');
   });
 
+  socket.on('newNotification', (data) => {
+  // Use the exposed IPC bridge from your preload script
+  window.electron.ipcRenderer.send('show-notification', {
+    title: `New Message from ${data.from}`,
+    body: data.text
+  });
+});
 
   socket.on('receivePrivateMessage', (data) => {
   const { senderName, message } = data;
@@ -98,6 +105,12 @@ ipcMain.on('clear-store', () => {
  ipcMain.on('register-socket-user', (event, username) => {
     socket.emit('registerName', username);
   });
+  ipcMain.on('show-notification', (event, arg) => {
+  new Notification({
+    title: arg.title,
+    body: arg.body,
+  }).show(); 
+});
 }
 
 function createTray() {

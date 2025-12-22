@@ -280,6 +280,31 @@ useEffect(() => {
     return () => socket.off('groupDisabled');
 }, []);
 
+useEffect(() => {
+  socket.on('newNotification', (data) => {
+    console.log("Notification received:", data); // You are seeing this now
+
+    // 1. Check if the browser supports notifications
+    if (!("Notification" in window)) return;
+
+    // 2. Request permission if not already granted
+    if (Notification.permission === "granted") {
+      new Notification(`New Message from ${data.from}`, {
+        body: data.text,
+      });
+    } else if (Notification.permission !== "denied") {
+      Notification.requestPermission().then((permission) => {
+        if (permission === "granted") {
+          new Notification(`New Message from ${data.from}`, { body: data.text });
+        }
+      });
+    }
+  });
+
+  return () => socket.off('newNotification');
+}, [socket]);
+
+
 
 //To handle creating the group 
  
