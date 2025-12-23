@@ -35,7 +35,7 @@ mainWindow = new BrowserWindow({
   })
 
   // socket = io('http://localhost:4000');
-  socket = io ('https://electron-chat-application-2.onrender.com');
+  socket = io ('https://electron-chat-application-3.onrender.com');
 
   socket.on('connect', () => {
     console.log('Main process connected to socket');
