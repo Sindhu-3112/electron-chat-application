@@ -2,6 +2,9 @@ appId: com.electron.app
 productName: chat-app
 directories:
   buildResources: build
+extraResources:
+  - from: "server.js"
+    to: "server.js"
 files:
   - '!**/.vscode/*'
   - '!src/*'

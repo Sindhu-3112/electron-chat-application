@@ -4,6 +4,7 @@ import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
 import path from 'path'
 import { io } from 'socket.io-client';
+import { fork } from 'child_process'
 // const io = require('socket.io-client');
 // const socket = io('http://localhost:4000');
 
@@ -16,6 +17,7 @@ let tray
 let mainWindow
 let socket
 let currentNotification;
+let serverProcess = null;
 
 app.setAppUserModelId(' com.electron.app') 
 function createWindow() {
@@ -32,7 +34,8 @@ mainWindow = new BrowserWindow({
     }
   })
 
-  socket = io('http://localhost:4000');
+  // socket = io('http://localhost:4000');
+  socket = io ('https://electron-chat-application-2.onrender.com');
 
   socket.on('connect', () => {
     console.log('Main process connected to socket');
@@ -130,8 +133,24 @@ function createTray() {
 
   tray.on('click', () => mainWindow.show())
 }
+// function startServer() {
+//   // Path when running in development
+//   let serverPath = path.join(__dirname, '../../server.js') 
+
+//   // Path when running in production (.exe)
+//   if (app.isPackaged) {
+//     serverPath = path.join(process.resourcesPath, 'server.js')
+//   }
+
+//   serverProcess = fork(serverPath)
+  
+//   serverProcess.on('error', (err) => console.error('Server error:', err))
+// }
 
 app.whenReady().then(() => {
+  createWindow()
+  //  startServer()
+    createTray()
  
   electronApp.setAppUserModelId('com.electron')
 
@@ -139,11 +158,11 @@ app.whenReady().then(() => {
     optimizer.watchWindowShortcuts(window)
   })
  
-   createTray()
+  
 
   ipcMain.on('ping', () => console.log('pong'))
 
-  createWindow()
+  
 
   app.on('activate', function () {
    if (BrowserWindow.getAllWindows().length === 0) createWindow()
@@ -156,8 +175,13 @@ app.whenReady().then(() => {
   });
 })
 
+// app.on('window-all-closed', () => {
+//   if (process.platform !== 'darwin') {
+//     app.quit()
+//   }
+// })
+
 app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') {
-    app.quit()
-  }
+  if (serverProcess) serverProcess.kill()
+  app.quit()
 })

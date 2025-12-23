@@ -207,30 +207,15 @@ const saveToStore = async (newUsername, newHistories) => {
     }
   }, [addMessageToHistory])
 
-  //To handle when the user removed from the group
+  //To handle chat room when the user removed from the group
 
-//   useEffect(() => {
-//     socket.on('removedFromGroup', ({ roomId }) => {
-      
-//         setConnectedUsers(prev => prev.filter(c => c.id !== roomId));
-        
-       
-//         if (activeRecipientId === roomId) {
-//             setActiveRecipientId(null);
-//             alert("You have been removed from the group.");
-//         }
-//     });
-
-//     return () => socket.off('removedFromGroup');
-// }, [activeRecipientId]);
 
 useEffect(() => {
   socket.on('removedFromGroup', ({ roomId }) => {
-    // DO NOT filter connectedUsers anymore. 
-    // Just mark it as disabled.
+    
     setDisabledGroups((prev) => [...prev, roomId]);
     
-    // Optional: alert the user
+   
     if (activeRecipientId === roomId) {
        alert("You have been removed from this group. You can still view history.");
     }
@@ -257,10 +242,10 @@ useEffect(() => {
     let session;
 
     if (window.electronAPI) {
-      // ELECTRON: Load from file
+     
       session = await window.electronAPI.getStoreData('reactChatSession');
     } else {
-      // BROWSER: Load from localStorage
+      
       const localData = localStorage.getItem('reactChatSession');
       session = localData ? JSON.parse(localData) : null;
     }
@@ -275,6 +260,7 @@ useEffect(() => {
   loadData();
 }, []);
 
+//To handle group disable for the user removed from the group 
 useEffect(() => {
     socket.on('groupDisabled', ({ roomId }) => {
         setDisabledGroups(prev => [...prev, roomId]);
@@ -283,14 +269,15 @@ useEffect(() => {
     return () => socket.off('groupDisabled');
 }, []);
 
+//To handle notification 
 useEffect(() => {
   socket.on('newNotification', (data) => {
-    console.log("Notification received:", data); // You are seeing this now
+    console.log("Notification received:", data);
 
-    // 1. Check if the browser supports notifications
+    
     if (!("Notification" in window)) return;
 
-    // 2. Request permission if not already granted
+    
     if (Notification.permission === "granted") {
       new Notification(`New Message from ${data.from}`, {
         body: data.text,
