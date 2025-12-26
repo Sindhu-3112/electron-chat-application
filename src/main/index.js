@@ -114,6 +114,23 @@ ipcMain.on('clear-store', () => {
     body: arg.body,
   }).show(); 
 });
+// Add this inside your main.js where your other ipcMain.on listeners are
+ipcMain.on('delete-message-permanently', (event, { chatPartnerId, messageId }) => {
+  // 1. Get current messages from store (use your actual key, e.g., 'messages')
+  const allMessages = store.get('messages') || {}; 
+  const chatHistory = allMessages[chatPartnerId] || [];
+
+  // 2. Map through and change the specific message
+  const updatedHistory = chatHistory.map(msg => 
+    msg.id === messageId ? { ...msg, text: "🚫 This message was deleted", deleted: true } : msg
+  );
+
+  // 3. Save it back to the disk
+  allMessages[chatPartnerId] = updatedHistory;
+  store.set('messages', allMessages);
+  console.log(`[STORE] Message ${messageId} deleted permanently for ${chatPartnerId}`);
+});
+
 }
 
 function createTray() {
@@ -149,16 +166,16 @@ function createTray() {
 
 app.whenReady().then(() => {
 
-   session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
-    callback({
-      responseHeaders: {
-        ...details.responseHeaders,
-        'Content-Security-Policy': [
-          "default-src 'self'; connect-src 'self' https://*.onrender.com wss://*.onrender.com"
-        ]
-      }
-    });
-  });
+  //  session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
+  //   callback({
+  //     responseHeaders: {
+  //       ...details.responseHeaders,
+  //       'Content-Security-Policy': [
+  //         "default-src 'self'; connect-src 'self' https://*.onrender.com wss://*.onrender.com"
+  //       ]
+  //     }
+  //   });
+  // });
   createWindow()
   //  startServer()
     createTray()

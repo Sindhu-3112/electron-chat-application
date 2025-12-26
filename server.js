@@ -11,6 +11,7 @@ const server = http.createServer(app);
 const io = socketIo(server, {
   cors: {
     origin: 'https://electron-chat-application-3.onrender.com',
+    //  origin: '*',
     methods: ["GET", "POST"],
     credentials: true
   }
@@ -19,6 +20,7 @@ const io = socketIo(server, {
 const connectedUsers = {}; 
 let publicMessageHistory = [];
 const roomMetadata = {} ;
+const users = {};
 
 function broadcastUserList() {
     const usersArray = Object.keys(connectedUsers).map(id => ({
@@ -237,6 +239,26 @@ if (action === 'remove') {
         io.to(roomId).emit('updateRoomParticipants', { roomId, members: updatedDetails });
     }
 });
+
+socket.on('delete_message', ({ messageId, recipientId, type }) => {
+  if (type === 'everyone') {
+    const recipientSocket = users[recipientId]?.socketId;
+    if (recipientSocket) {
+      // Tell the RECIPIENT that the message from 'username' (the sender) is deleted
+      io.to(recipientSocket).emit('message_deleted', { 
+        messageId, 
+        chatPartnerId: username // The recipient looks in the sender's chat history
+      });
+    }
+  }
+  
+  // Always tell the SENDER to update their own UI and Store
+  socket.emit('message_deleted', { 
+    messageId, 
+    chatPartnerId: recipientId 
+  });
+});
+
 
 
 

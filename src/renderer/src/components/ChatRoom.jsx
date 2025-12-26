@@ -10,13 +10,13 @@ import { v4 as uuidv4 } from 'uuid'
 function ChatRoom() {
   const [input, setInput] = useState('')
   // const [sessionData] = useState(getStoredSession())
-  const [username, setUsername] =useState(null);
+  const [username, setUsername] = useState(null);
   const [connectedUsers, setConnectedUsers] = useState([])
   const [selectedUsers, setSelectedUsers] = useState([])
   const [isCreatingGroup, setIsCreatingGroup] = useState(false)
   const [activeRecipientId, setActiveRecipientId] = useState(null)
   // const [allChatMessages, setAllChatMessages] = useState(sessionData.histories)
-  const [allChatMessages,setAllChatMessages] = useState({})
+  const [allChatMessages, setAllChatMessages] = useState({})
   const [roomMembers, setRoomMembers] = useState({})
   const [isAddingMember, setIsAddingMember] = useState(false)
   const [selectedNewMembers, setSelectedNewMembers] = useState([])
@@ -26,6 +26,8 @@ function ChatRoom() {
   const [disabledGroups, setDisabledGroups] = useState([]);
   const [isGroupNameModalOpen, setIsGroupNameModalOpen] = useState(false);
   const [tempGroupName, setTempGroupName] = useState('');
+  const [deleteModal, setDeleteModal] = useState({ visible: false, msgId: null, isOwn: false });
+
 
 
 
@@ -45,43 +47,43 @@ function ChatRoom() {
   const isCreator = activeRoom?.isGroup && activeRoom?.creator === socket.id
   const participants = roomMembers[activeRecipientId] || activeRoom?.members || []
 
- 
-  const saveToElectronStore = async (newUsername, newHistories) => {
-  if (!window.electronAPI) return;
-  await window.electronAPI.setStoreData('username', newUsername);
-  await window.electronAPI.setStoreData('histories', newHistories);
-};
-const saveToStore = async (newUsername, newHistories) => {
-  const data = { username: newUsername, histories: newHistories };
 
-  if (window.electronAPI) {
-    // ELECTRON: Save to physical file
-    await window.electronAPI.setStoreData('reactChatSession', data);
-  } else {
-    // BROWSER: Save to browser storage
-    localStorage.setItem('reactChatSession', JSON.stringify(data));
-  }
-};
+  const saveToElectronStore = async (newUsername, newHistories) => {
+    if (!window.electronAPI) return;
+    await window.electronAPI.setStoreData('username', newUsername);
+    await window.electronAPI.setStoreData('histories', newHistories);
+  };
+  const saveToStore = async (newUsername, newHistories) => {
+    const data = { username: newUsername, histories: newHistories };
+
+    if (window.electronAPI) {
+      // ELECTRON: Save to physical file
+      await window.electronAPI.setStoreData('reactChatSession', data);
+    } else {
+      // BROWSER: Save to browser storage
+      localStorage.setItem('reactChatSession', JSON.stringify(data));
+    }
+  };
 
 
 
   const scrollToBottom = () => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
 
   const addMessageToHistory = useCallback(
-  (message, chatId) => {
-    setAllChatMessages((prevHistories) => {
-      const updatedMessagesForChat = [...(prevHistories[chatId] || []), message];
-      const updatedHistories = { ...prevHistories, [chatId]: updatedMessagesForChat };
+    (message, chatId) => {
+      setAllChatMessages((prevHistories) => {
+        const updatedMessagesForChat = [...(prevHistories[chatId] || []), message];
+        const updatedHistories = { ...prevHistories, [chatId]: updatedMessagesForChat };
 
-       saveToStore(username, updatedHistories); // ✅ persist to Electron Store
+        saveToStore(username, updatedHistories); // ✅ persist to Electron Store
 
-      return updatedHistories;
-    });
-  },
-  [username]
-);
+        return updatedHistories;
+      });
+    },
+    [username]
+  );
 
-  
+
   // To update group members when users added or removed from group
   useEffect(() => {
     socket.on('updateRoomParticipants', ({ roomId, members }) => {
@@ -114,14 +116,14 @@ const saveToStore = async (newUsername, newHistories) => {
       if (senderId !== socket.id) {
         addMessageToHistory({ ...message, isPrivate: true }, senderId)
       }
-       if (senderId !== activeRecipientId) {
-    setUnreadCounts((prev) => ({
-      ...prev,
-      [senderId]: (prev[senderId] || 0) + 1
-    }));
-  }
+      if (senderId !== activeRecipientId) {
+        setUnreadCounts((prev) => ({
+          ...prev,
+          [senderId]: (prev[senderId] || 0) + 1
+        }));
+      }
     })
-    
+
 
     return () => {
       socket.off('connect')
@@ -133,7 +135,7 @@ const saveToStore = async (newUsername, newHistories) => {
   useEffect(() => {
     scrollToBottom()
   }, [allChatMessages, activeRecipientId])
-  
+
   //To handle when new user added to the existing group
   useEffect(() => {
     socket.on('invitedToGroup', (groupData) => {
@@ -153,8 +155,8 @@ const saveToStore = async (newUsername, newHistories) => {
         ]
       })
     })
-    
-  
+
+
     socket.on('updateRoomParticipants', ({ roomId, members }) => {
       setRoomMembers((prev) => ({ ...prev, [roomId]: members }))
 
@@ -166,14 +168,14 @@ const saveToStore = async (newUsername, newHistories) => {
     })
   }, [])
 
-   //To handle when user entered the group previous messages are not loaded
+  //To handle when user entered the group previous messages are not loaded
   useEffect(() => {
     socket.on('invitedToGroup', (groupData) => {
       const { roomId, groupName, creator, members } = groupData
       socket.emit('joinGroupRoom', roomId)
 
       setConnectedUsers((prev) => {
-       
+
         if (prev.find((u) => u.id === roomId)) return prev
 
         return [
@@ -192,12 +194,12 @@ const saveToStore = async (newUsername, newHistories) => {
     socket.on('receiveGroupMessage', (data) => {
       const { roomId, message } = data;
 
-  if (roomId !== activeRecipientId) {
-    setUnreadCounts((prev) => ({
-      ...prev,
-      [roomId]: (prev[roomId] || 0) + 1
-    }));
-  }
+      if (roomId !== activeRecipientId) {
+        setUnreadCounts((prev) => ({
+          ...prev,
+          [roomId]: (prev[roomId] || 0) + 1
+        }));
+      }
       addMessageToHistory({ ...data.message, isGroup: true }, data.roomId)
     })
 
@@ -210,115 +212,135 @@ const saveToStore = async (newUsername, newHistories) => {
   //To handle chat room when the user removed from the group
 
 
-useEffect(() => {
-  socket.on('removedFromGroup', ({ roomId }) => {
-    
-    setDisabledGroups((prev) => [...prev, roomId]);
-    
-   
-    if (activeRecipientId === roomId) {
-       alert("You have been removed from this group. You can still view history.");
+  useEffect(() => {
+    socket.on('removedFromGroup', ({ roomId }) => {
+
+      setDisabledGroups((prev) => [...prev, roomId]);
+
+
+      if (activeRecipientId === roomId) {
+        alert("You have been removed from this group. You can still view history.");
+      }
+    });
+
+    return () => socket.off('removedFromGroup');
+  }, [activeRecipientId]);
+  useEffect(() => {
+    if (activeRecipientId) {
+      setUnreadCounts((prev) => ({
+        ...prev,
+        [activeRecipientId]: 0
+      }));
     }
-  });
-
-  return () => socket.off('removedFromGroup');
-}, [activeRecipientId]);
-useEffect(() => {
-  if (activeRecipientId) {
-    setUnreadCounts((prev) => ({
-      ...prev,
-      [activeRecipientId]: 0
-    }));
-  }
-}, [activeRecipientId]);
+  }, [activeRecipientId]);
 
 
 
- // To handle creating a new group with selected user and named the group
+  // To handle creating a new group with selected user and named the group
 
 
-useEffect(() => {
-  const loadData = async () => {
-    let session;
+  useEffect(() => {
+    const loadData = async () => {
+      let session;
 
-    if (window.electronAPI) {
-     
-      session = await window.electronAPI.getStoreData('reactChatSession');
-    } else {
-      
-      const localData = localStorage.getItem('reactChatSession');
-      session = localData ? JSON.parse(localData) : null;
-    }
+      if (window.electronAPI) {
 
-    if (session) {
-      if (session.username) setUsername(session.username);
-      if (session.histories) setAllChatMessages(session.histories);
-    }
-    setIsLoaded(true);
-  };
+        session = await window.electronAPI.getStoreData('reactChatSession');
+      } else {
 
-  loadData();
-}, []);
+        const localData = localStorage.getItem('reactChatSession');
+        session = localData ? JSON.parse(localData) : null;
+      }
 
-//To handle group disable for the user removed from the group 
-useEffect(() => {
+      if (session) {
+        if (session.username) setUsername(session.username);
+        if (session.histories) setAllChatMessages(session.histories);
+      }
+      setIsLoaded(true);
+    };
+
+    loadData();
+  }, []);
+
+  //To handle group disable for the user removed from the group 
+  useEffect(() => {
     socket.on('groupDisabled', ({ roomId }) => {
-        setDisabledGroups(prev => [...prev, roomId]);
+      setDisabledGroups(prev => [...prev, roomId]);
     });
 
     return () => socket.off('groupDisabled');
-}, []);
+  }, []);
 
-//To handle notification 
-useEffect(() => {
-  socket.on('newNotification', (data) => {
-    console.log("Notification received:", data);
+  //To handle notification 
+  useEffect(() => {
+    socket.on('newNotification', (data) => {
+      console.log("Notification received:", data);
 
-    
-    if (!("Notification" in window)) return;
 
-    
-    if (Notification.permission === "granted") {
-      new Notification(`New Message from ${data.from}`, {
-        body: data.text,
-      });
-    } else if (Notification.permission !== "denied") {
-      Notification.requestPermission().then((permission) => {
-        if (permission === "granted") {
-          new Notification(`New Message from ${data.from}`, { body: data.text });
-        }
-      });
-    }
+      if (!("Notification" in window)) return;
+
+
+      if (Notification.permission === "granted") {
+        new Notification(`New Message from ${data.from}`, {
+          body: data.text,
+        });
+      } else if (Notification.permission !== "denied") {
+        Notification.requestPermission().then((permission) => {
+          if (permission === "granted") {
+            new Notification(`New Message from ${data.from}`, { body: data.text });
+          }
+        });
+      }
+    });
+
+    return () => socket.off('newNotification');
+  }, [socket]);
+
+  useEffect(() => {
+  socket.on('message_deleted', ({ messageId, chatPartnerId }) => {
+    setAllChatMessages(prev => {
+      const chat = prev[chatPartnerId] || [];
+      const updatedChat = chat.map(msg => 
+        msg.id === messageId ? { ...msg, text: "🚫 This message was deleted", deleted: true } : msg
+      );
+
+      // SAVE TO DISK PERMANENTLY via the Preload Bridge
+      if (window.electronAPI && window.electronAPI.deleteMessagePermanently) {
+        window.electronAPI.deleteMessagePermanently(chatPartnerId, messageId);
+      }
+
+      return { ...prev, [chatPartnerId]: updatedChat };
+    });
   });
 
-  return () => socket.off('newNotification');
-}, [socket]);
+  return () => socket.off('message_deleted');
+}, []);
 
 
 
-//To handle creating the group 
- 
+  //To handle creating the group 
 
-const handleCreateGroupSubmit = () => {
-  if (selectedUsers.length > 0) {
-    setIsGroupNameModalOpen(true);
-  }
-};
 
-const finalizeGroupCreation = () => {
-  if (tempGroupName.trim()) {
-    socket.emit('createGroup', {
-      groupName: tempGroupName,
-      userIds: [...selectedUsers, socket.id]
-    });
-    
-    // Reset everything
-    setIsCreatingGroup(false);
-    setIsGroupNameModalOpen(false);
-    setSelectedUsers([]);
-    setTempGroupName('');
-  }
-};
+  const handleCreateGroupSubmit = () => {
+    if (selectedUsers.length > 0) {
+      setIsGroupNameModalOpen(true);
+    }
+  };
+
+  const finalizeGroupCreation = () => {
+    if (tempGroupName.trim()) {
+      socket.emit('createGroup', {
+        groupName: tempGroupName,
+        userIds: [...selectedUsers, socket.id]
+      });
+
+      // Reset everything
+      setIsCreatingGroup(false);
+      setIsGroupNameModalOpen(false);
+      setSelectedUsers([]);
+      setTempGroupName('');
+    }
+  };
 
   //To handle sending messages to private and group chat from the input box
 
@@ -343,32 +365,32 @@ const finalizeGroupCreation = () => {
   }
 
   useEffect(() => {
-  // Listen for data forwarded from main.js
-  const handleMainMessage = (event, data) => {
-    addMessageToHistory(data.message, data.senderId);
-  };
+    // Listen for data forwarded from main.js
+    const handleMainMessage = (event, data) => {
+      addMessageToHistory(data.message, data.senderId);
+    };
 
-  if (window.electronAPI) {
-    window.electronAPI.onSocketData(handleMainMessage);
-  }
-}, [addMessageToHistory]);
+    if (window.electronAPI) {
+      window.electronAPI.onSocketData(handleMainMessage);
+    }
+  }, [addMessageToHistory]);
 
-  
+
   //To handle user name submission
   const handleNameSubmit = (e) => {
-  e.preventDefault();
-  const name = input.trim();
+    e.preventDefault();
+    const name = input.trim();
 
-  if (name) {
-    setUsername(name);
-    socket.emit('registerName', name);
-     window.electronAPI.registerSocketUser(name);
-     saveToStore(name, allChatMessages); // ✅
-  }
-};
+    if (name) {
+      setUsername(name);
+      socket.emit('registerName', name);
+      window.electronAPI.registerSocketUser(name);
+      saveToStore(name, allChatMessages); // ✅
+    }
+  };
 
- 
-   const handleLogout = () => {
+
+  const handleLogout = () => {
     setUsername(null);
     setAllChatMessages({ 'PUBLIC': [] });
     window.electronAPI.clearStore();
@@ -377,7 +399,7 @@ const finalizeGroupCreation = () => {
   //To get recipient name either group or private chat
   const getRecipientName = (id) => {
     const user = connectedUsers.find((u) => u.id === id)
-    return user ? user.name :'unknown user'
+    return user ? user.name : 'unknown user'
   }
   //To format time from ISO string to readable format which is used for timestamp
   const formatTime = (isoString) => {
@@ -386,34 +408,34 @@ const finalizeGroupCreation = () => {
   }
 
   const handleParticipantAction = (memberId, memberName) => {
- 
-  if (memberId === socket.id) return;
 
-  if (isCreator) {
-   
-    const choice = window.confirm(
-      `Options for ${memberName}:\n\n- Click OK to REMOVE from group\n- Click CANCEL to Open Private Chat`
-    );
+    if (memberId === socket.id) return;
 
-    if (choice) {
-      
-      socket.emit('updateGroupMembers', {
-        roomId: activeRecipientId,
-        userId: memberId,
-        action: 'remove',
-      });
+    if (isCreator) {
+
+      const choice = window.confirm(
+        `Options for ${memberName}:\n\n- Click OK to REMOVE from group\n- Click CANCEL to Open Private Chat`
+      );
+
+      if (choice) {
+
+        socket.emit('updateGroupMembers', {
+          roomId: activeRecipientId,
+          userId: memberId,
+          action: 'remove',
+        });
+      } else {
+
+        setActiveRecipientId(memberId);
+      }
     } else {
-      
+
       setActiveRecipientId(memberId);
     }
-  } else {
-    
-    setActiveRecipientId(memberId);
-  }
-};
+  };
 
- if (!isLoaded) return <div>Loading...</div>;
-  // To display welcome screen initially when chat box not opened
+  if (!isLoaded) return <div>Loading...</div>;
+
   if (!username) {
     return (
       <div
@@ -528,72 +550,72 @@ const finalizeGroupCreation = () => {
           ))
         )} */}
         {connectedUsers.length === 0 ? (
-  <p style={{ color: 'gray' }}>No users</p>
-) : (
-  connectedUsers.map((user) => {
-    const isDisabled = disabledGroups.includes(user.id);
+          <p style={{ color: 'gray' }}>No users</p>
+        ) : (
+          connectedUsers.map((user) => {
+            const isDisabled = disabledGroups.includes(user.id);
 
-    return (
-      <button
-        key={user.id}
-        onClick={() => setActiveRecipientId(user.id)}
-        style={{
-          display: 'block',
-          width: '100%',
-          padding: '10px',
-          marginBottom: '5px',
-          textAlign: 'left',
-          background: activeRecipientId === user.id ? '#007bff' : 'transparent',
-          color: activeRecipientId === user.id ? 'white' : isDisabled ? '#888' : 'black',
-          border: '1px solid #ddd',
-          borderRadius: '5px',
-          cursor: 'pointer',
-          borderLeft: isDisabled ? '5px solid #ccc' : '1px solid #ddd',
-          opacity: isDisabled ? 0.7 : 1
-        }}
-      >
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div style={{ display: 'flex', alignItems: 'center' }}>
-            {/* Checkbox for Group Creation - Only shows if not a group and not disabled */}
-            {isCreatingGroup && !user.isGroup && !isDisabled && (
-              <input
-                type="checkbox"
-                style={{ marginRight: '10px' }}
-                onChange={(e) => {
-                  if (e.target.checked) setSelectedUsers([...selectedUsers, user.id])
-                  else setSelectedUsers(selectedUsers.filter((id) => id !== user.id))
+            return (
+              <button
+                key={user.id}
+                onClick={() => setActiveRecipientId(user.id)}
+                style={{
+                  display: 'block',
+                  width: '100%',
+                  padding: '10px',
+                  marginBottom: '5px',
+                  textAlign: 'left',
+                  background: activeRecipientId === user.id ? '#007bff' : 'transparent',
+                  color: activeRecipientId === user.id ? 'white' : isDisabled ? '#888' : 'black',
+                  border: '1px solid #ddd',
+                  borderRadius: '5px',
+                  cursor: 'pointer',
+                  borderLeft: isDisabled ? '5px solid #ccc' : '1px solid #ddd',
+                  opacity: isDisabled ? 0.7 : 1
                 }}
-              />
-            )}
-            
-            <span>
-              {user.name} 
-              {isDisabled && <small style={{ marginLeft: '5px', fontStyle: 'italic' }}>(Removed)</small>}
-            </span>
-          </div>
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div style={{ display: 'flex', alignItems: 'center' }}>
+                   
+                    {isCreatingGroup && !user.isGroup && !isDisabled && (
+                      <input
+                        type="checkbox"
+                        style={{ marginRight: '10px' }}
+                        onChange={(e) => {
+                          if (e.target.checked) setSelectedUsers([...selectedUsers, user.id])
+                          else setSelectedUsers(selectedUsers.filter((id) => id !== user.id))
+                        }}
+                      />
+                    )}
 
-          {/* Unread Message Badge */}
-          {unreadCounts[user.id] > 0 && activeRecipientId !== user.id && (
-            <span
-              style={{
-                backgroundColor: activeRecipientId === user.id ? 'white' : '#007bff',
-                color: activeRecipientId === user.id ? '#007bff' : 'white',
-                borderRadius: '8px',
-                padding: '2px 8px',
-                fontSize: '11px',
-                fontWeight: 'bold',
-                minWidth: '18px',
-                textAlign: 'center'
-              }}
-            >
-              {unreadCounts[user.id]}
-            </span>
-          )}
-        </div>
-      </button>
-    );
-  })
-)}
+                    <span>
+                      {user.name}
+                      {isDisabled && <small style={{ marginLeft: '5px', fontStyle: 'italic' }}>(Removed)</small>}
+                    </span>
+                  </div>
+
+                  {/* Unread Message Badge */}
+                  {unreadCounts[user.id] > 0 && activeRecipientId !== user.id && (
+                    <span
+                      style={{
+                        backgroundColor: activeRecipientId === user.id ? 'white' : '#007bff',
+                        color: activeRecipientId === user.id ? '#007bff' : 'white',
+                        borderRadius: '8px',
+                        padding: '2px 8px',
+                        fontSize: '11px',
+                        fontWeight: 'bold',
+                        minWidth: '18px',
+                        textAlign: 'center'
+                      }}
+                    >
+                      {unreadCounts[user.id]}
+                    </span>
+                  )}
+                </div>
+              </button>
+            );
+          })
+        )}
 
       </div>
 
@@ -663,87 +685,87 @@ const finalizeGroupCreation = () => {
                 <div style={{ fontSize: '0.85em', color: '#888' }}>
                   <strong>Members: </strong>
 
-            
 
-                 
 
-<div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '10px' }}>
-  {participants.map((m) => {
-   
-    const memberId = typeof m === 'string' ? m : m.id;
-    const memberName = typeof m === 'string' ? getRecipientName(m) : m.name;
 
-    return (
-      <div key={memberId} style={{ position: 'relative' }}>
-      
-        <div
-          onClick={(e) => {
-            e.stopPropagation(); 
-           
-            setActiveMenuId(activeMenuId === memberId ? null : memberId);
-          }}
-          style={{
-            backgroundColor: '#007bff',
-            color: 'white',
-            padding: '5px 15px',
-            borderRadius: '20px',
-            fontSize: '0.85em',
-            cursor: 'pointer',
-            border: '1px solid #0056b3',
-            display: 'flex',
-            alignItems: 'center'
-          }}
-        >
-          {memberName} {memberId !== socket.id && <span style={{ marginLeft: '8px', fontSize: '0.7em' }}>▼</span>}
-        </div>
 
-      
-        {activeMenuId === memberId && memberId !== socket.id && (
-          <div style={{
-            position: 'absolute',
-            top: '35px',
-            left: '0',
-            backgroundColor: 'white',
-            boxShadow: '0px 4px 10px rgba(0,0,0,0.2)',
-            borderRadius: '8px',
-            zIndex: 100,
-            minWidth: '160px',
-            border: '1px solid #ddd',
-            overflow: 'hidden'
-          }}>
-            
-            <button 
-              onClick={() => {
-                setActiveRecipientId(memberId);
-                setActiveMenuId(null); 
-              }}
-              style={{ display: 'block', width: '100%', padding: '10px', textAlign: 'left', border: 'none', background: 'none', cursor: 'pointer', borderBottom: '1px solid #eee' }}
-            >
-               Private Message
-            </button>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '10px' }}>
+                    {participants.map((m) => {
 
-          
-            {isCreator && (
-              <button 
-                onClick={() => {
-                  socket.emit('updateGroupMembers', { 
-                    roomId: activeRecipientId, 
-                    userId: memberId, 
-                    action: 'remove' 
-                  });
-                  setActiveMenuId(null); 
-                }}
-                style={{ display: 'block', width: '100%', padding: '10px', textAlign: 'left', border: 'none', background: 'none', color: 'red', cursor: 'pointer' }}
-              >
-                Remove 
-              </button>
-            )}
-          </div>
-        )}
-      </div>
-    )
-  })}
-</div>
+                      const memberId = typeof m === 'string' ? m : m.id;
+                      const memberName = typeof m === 'string' ? getRecipientName(m) : m.name;
+
+                      return (
+                        <div key={memberId} style={{ position: 'relative' }}>
+
+                          <div
+                            onClick={(e) => {
+                              e.stopPropagation();
+
+                              setActiveMenuId(activeMenuId === memberId ? null : memberId);
+                            }}
+                            style={{
+                              backgroundColor: '#007bff',
+                              color: 'white',
+                              padding: '5px 15px',
+                              borderRadius: '20px',
+                              fontSize: '0.85em',
+                              cursor: 'pointer',
+                              border: '1px solid #0056b3',
+                              display: 'flex',
+                              alignItems: 'center'
+                            }}
+                          >
+                            {memberName} {memberId !== socket.id && <span style={{ marginLeft: '8px', fontSize: '0.7em' }}>▼</span>}
+                          </div>
+
+
+                          {activeMenuId === memberId && memberId !== socket.id && (
+                            <div style={{
+                              position: 'absolute',
+                              top: '35px',
+                              left: '0',
+                              backgroundColor: 'white',
+                              boxShadow: '0px 4px 10px rgba(0,0,0,0.2)',
+                              borderRadius: '8px',
+                              zIndex: 100,
+                              minWidth: '160px',
+                              border: '1px solid #ddd',
+                              overflow: 'hidden'
+                            }}>
+
+                              <button
+                                onClick={() => {
+                                  setActiveRecipientId(memberId);
+                                  setActiveMenuId(null);
+                                }}
+                                style={{ display: 'block', width: '100%', padding: '10px', textAlign: 'left', border: 'none', background: 'none', cursor: 'pointer', borderBottom: '1px solid #eee' }}
+                              >
+                                Private Message
+                              </button>
+
+
+                              {isCreator && (
+                                <button
+                                  onClick={() => {
+                                    socket.emit('updateGroupMembers', {
+                                      roomId: activeRecipientId,
+                                      userId: memberId,
+                                      action: 'remove'
+                                    });
+                                    setActiveMenuId(null);
+                                  }}
+                                  style={{ display: 'block', width: '100%', padding: '10px', textAlign: 'left', border: 'none', background: 'none', color: 'red', cursor: 'pointer' }}
+                                >
+                                  Remove
+                                </button>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      )
+                    })}
+                  </div>
 
 
 
@@ -872,118 +894,232 @@ const finalizeGroupCreation = () => {
                 </div>
               )}
 
-              {/* {(allChatMessages[activeRecipientId] || []).map((msg,index) => (
-                <div
-                  key={msg.id}
-                  style={{
-                    marginBottom: '10px',
-                    textAlign: msg.user === username ? 'right' : 'left'
-                  }}
-                >
-                  {activeRecipientId.startsWith('room_') && msg.user !== username && (
-                    <div
-                      style={{
-                        fontWeight: 'bold',
-                        fontSize: '0.75em',
-                        marginBottom: '4px',
-                        color: '#555'
-                      }}
-                    >
-                      {msg.user}
-                    </div>
-                  )}
-                  <div
-                    style={{
-                      display: 'inline-block',
-                      padding: '10px 15px',
-                      borderRadius: '18px',
-                      backgroundColor: msg.user === username ? '#007bff' : '#e9e9e9',
-                      color: msg.user === username ? 'white' : 'black',
-                      maxWidth: '70%',
-                      position: 'relative'
-                    }}
-                  >
-                    {msg.text}
-                    <div
-                      style={{
-                        fontSize: '0.65em',
-                        marginTop: '4px',
-                        textAlign: 'right',
-                        opacity: 0.7
-                      }}
-                    >
-                      {formatTime(msg.timestamp)}
-                    </div>
-                  </div>
-                </div>
-              ))} */}
-
               {(allChatMessages[activeRecipientId] || []).map((msg, index) => (
-  msg.isSystem ? (
-    /* WhatsApp-style System Message */
-    <div key={index} style={{ 
-      textAlign: 'center', 
-      margin: '15px 0', 
-      width: '100%' 
-    }}>
-      <span style={{ 
-        backgroundColor: '#e1f3fb',
-        color: '#54656f',          
-        padding: '5px 12px', 
-        borderRadius: '8px',
-        fontSize: '0.8em',
-        boxShadow: '0 1px 1px rgba(0,0,0,0.1)'
-      }}>
-        {msg.text}
-      </span>
-    </div>
-  ) : (
-    /* Your existing Chat Bubble Logic */
-   <div
-                  key={msg.id}
-                  style={{
-                    marginBottom: '10px',
-                    textAlign: msg.user === username ? 'right' : 'left'
-                  }}
-                >
-                  {activeRecipientId.startsWith('room_') && msg.user !== username && (
-                    <div
-                      style={{
-                        fontWeight: 'bold',
-                        fontSize: '0.75em',
-                        marginBottom: '4px',
-                        color: '#555'
-                      }}
-                    >
-                      {msg.user}
-                    </div>
-                  )}
-                  <div
-                    style={{
-                      display: 'inline-block',
-                      padding: '10px 15px',
-                      borderRadius: '18px',
-                      backgroundColor: msg.user === username ? '#007bff' : '#e9e9e9',
-                      color: msg.user === username ? 'white' : 'black',
-                      maxWidth: '70%',
-                      position: 'relative'
-                    }}
-                  >
-                    {msg.text}
-                    <div
-                      style={{
-                        fontSize: '0.65em',
-                        marginTop: '4px',
-                        textAlign: 'right',
-                        opacity: 0.7
-                      }}
-                    >
-                      {formatTime(msg.timestamp)}
-                    </div>
+                msg.isSystem ? (
+                  /* WhatsApp-style System Message */
+                  <div key={index} style={{
+                    textAlign: 'center',
+                    margin: '15px 0',
+                    width: '100%'
+                  }}>
+                    <span style={{
+                      backgroundColor: '#e1f3fb',
+                      color: '#54656f',
+                      padding: '5px 12px',
+                      borderRadius: '8px',
+                      fontSize: '0.8em',
+                      boxShadow: '0 1px 1px rgba(0,0,0,0.1)'
+                    }}>
+                      {msg.text}
+                    </span>
                   </div>
-                </div>
-  )
-))}
+                ) : (
+                  /* Your existing Chat Bubble Logic */
+                  // <div
+                  //   key={msg.id}
+                  //   style={{
+                  //     marginBottom: '10px',
+                  //     textAlign: msg.user === username ? 'right' : 'left'
+                  //   }}
+                  // >
+                  //   {activeRecipientId.startsWith('room_') && msg.user !== username && (
+                  //     <div
+                  //       style={{
+                  //         fontWeight: 'bold',
+                  //         fontSize: '0.75em',
+                  //         marginBottom: '4px',
+                  //         color: '#555'
+                  //       }}
+                  //     >
+                  //       {msg.user}
+                  //     </div>
+                  //   )}
+                  //   <div
+                  //     style={{
+                  //       display: 'inline-block',
+                  //       padding: '10px 15px',
+                  //       borderRadius: '18px',
+                  //       backgroundColor: msg.user === username ? '#007bff' : '#e9e9e9',
+                  //       color: msg.user === username ? 'white' : 'black',
+                  //       maxWidth: '70%',
+                  //       position: 'relative'
+                  //     }}
+                  //   >
+                  //     {msg.text}
+                  //     <div
+                  //       style={{
+                  //         fontSize: '0.65em',
+                  //         marginTop: '4px',
+                  //         textAlign: 'right',
+                  //         opacity: 0.7
+                  //       }}
+                  //     >
+                  //       {formatTime(msg.timestamp)}
+                  //     </div>
+                  //   </div>
+                  // </div>
+                  <div
+  key={msg.id}
+  style={{
+    marginBottom: '10px',
+    textAlign: msg.user === username ? 'right' : 'left'
+  }}
+  // 1. Right-click opens the centered delete modal
+  onContextMenu={(e) => {
+    e.preventDefault();
+    setDeleteModal({ 
+      visible: true, 
+      msgId: msg.id, 
+      isOwn: msg.user === username 
+    });
+  }}
+>
+  {activeRecipientId.startsWith('room_') && msg.user !== username && (
+    <div
+      style={{
+        fontWeight: 'bold',
+        fontSize: '0.75em',
+        marginBottom: '4px',
+        color: '#555'
+      }}
+    >
+      {msg.user}
+    </div>
+  )}
+  <div
+    style={{
+      display: 'inline-block',
+      padding: '10px 15px',
+      borderRadius: '18px',
+      // 2. Change color and font if message is deleted
+      backgroundColor: msg.deleted ? '#f0f0f0' : (msg.user === username ? '#007bff' : '#e9e9e9'),
+      color: msg.deleted ? '#999' : (msg.user === username ? 'white' : 'black'),
+      fontStyle: msg.deleted ? 'italic' : 'normal',
+      maxWidth: '70%',
+      position: 'relative',
+      border: msg.deleted ? '1px solid #ddd' : 'none'
+    }}
+  >
+    {/* 3. Show "Deleted" text instead of message if msg.deleted is true */}
+    {msg.deleted ? "🚫 This message was deleted" : msg.text}
+
+    <div
+      style={{
+        fontSize: '0.65em',
+        marginTop: '4px',
+        textAlign: 'right',
+        opacity: 0.7,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'flex-end',
+        gap: '4px'
+      }}
+    >
+      {formatTime(msg.timestamp)}
+
+      {/* 4. WhatsApp-style Status Ticks (Only for non-deleted messages sent by you) */}
+      {!msg.deleted && msg.user === username && (
+        <span style={{ 
+          color: msg.status === 'seen' ? '#34b7f1' : 'inherit',
+          fontSize: '1.1em',
+          fontWeight: 'bold'
+        }}>
+          {msg.status === 'seen' ? '✓✓' : '✓'}
+        </span>
+      )}
+    </div>
+  </div>
+  {/* CENTERED DELETE MODAL */}
+{deleteModal.visible && (
+  <div 
+    style={{
+      position: 'fixed', 
+      top: 0, 
+      left: 0, 
+      width: '100vw', 
+      height: '100vh',
+      backgroundColor: 'rgba(0,0,0,0.6)', 
+      display: 'flex', 
+      justifyContent: 'center', 
+      alignItems: 'center', 
+      zIndex: 99999
+    }} 
+    onClick={() => setDeleteModal({ visible: false, msgId: null, isOwn: false })}
+  >
+    <div 
+      style={{
+        backgroundColor: 'white', 
+        padding: '25px', 
+        borderRadius: '16px',
+        width: '320px', 
+        textAlign: 'center', 
+        boxShadow: '0 10px 30px rgba(0,0,0,0.3)'
+      }} 
+      onClick={e => e.stopPropagation()} // Prevents closing when clicking inside the box
+    >
+      <h3 style={{ margin: '0 0 10px 0', fontSize: '1.2em' }}>Delete message?</h3>
+      <p style={{ color: '#666', fontSize: '0.9em', marginBottom: '20px' }}>
+        Are you sure you want to delete this message?
+      </p>
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+        {/* OPTION 1: Delete for Everyone (Only shows if you are the sender) */}
+        {deleteModal.isOwn && (
+          <button 
+            style={{ 
+              padding: '12px', background: '#ff3b30', color: 'white', 
+              border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' 
+            }}
+            onClick={() => {
+              socket.emit('delete_message', { 
+                messageId: deleteModal.msgId, 
+                recipientId: activeRecipientId, 
+                type: 'everyone' 
+              });
+              setDeleteModal({ visible: false, msgId: null, isOwn: false });
+            }}
+          >
+            Delete for everyone
+          </button>
+        )}
+
+        {/* OPTION 2: Delete for Me */}
+        <button 
+          style={{ 
+            padding: '12px', background: '#f0f2f5', border: 'none', 
+            borderRadius: '8px', cursor: 'pointer' 
+          }}
+          onClick={() => {
+            socket.emit('delete_message', { 
+              messageId: deleteModal.msgId, 
+              recipientId: activeRecipientId, 
+              type: 'me' 
+            });
+            setDeleteModal({ visible: false, msgId: null, isOwn: false });
+          }}
+        >
+          Delete for me
+        </button>
+
+        {/* OPTION 3: Cancel */}
+        <button 
+          style={{ 
+            padding: '10px', background: 'none', border: 'none', 
+            color: '#007bff', cursor: 'pointer' 
+          }}
+          onClick={() => setDeleteModal({ visible: false, msgId: null, isOwn: false })}
+        >
+          Cancel
+        </button>
+      </div>
+    </div>
+  </div>
+)}
+
+</div>
+
+                )
+              ))}
 
 
 
@@ -991,104 +1127,73 @@ const finalizeGroupCreation = () => {
               <div ref={messagesEndRef} />
             </div>
 
-             {/* In your message input rendering logic */}
-{disabledGroups.includes(activeRecipientId) ? (
-  <div style={{ padding: '10px', backgroundColor: '#eee', textAlign: 'center', color: '#666' }}>
-    You are no longer a member of this group. You can only view the history.
-  </div>
-) : (
-  <form onSubmit={sendMessage}>
-    <input 
-      value={input} 
-      onChange={(e) => setInput(e.target.value)} 
-      placeholder="Type a message..." 
-    />
-    <button type="submit">Send</button>
-  </form>
-)}
+            {/* In your message input rendering logic */}
+            {disabledGroups.includes(activeRecipientId) ? (
+              <div style={{ padding: '10px', backgroundColor: '#eee', textAlign: 'center', color: '#666' }}>
+                You are no longer a member of this group. You can only view the history.
+              </div>
+            ) : (
+              <form onSubmit={sendMessage}>
+                <input
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  placeholder="Type a message..."
+                />
+                <button type="submit">Send</button>
+              </form>
+            )}
 
-            {/* <form
-              onSubmit={sendMessage}
-              style={{ padding: '20px', borderTop: '1px solid #ccc', display: 'flex' }}
-            >
-              <input
-                type="text"
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                placeholder="Type a message..."
-                style={{
-                  flexGrow: 1,
-                  padding: '12px',
-                  borderRadius: '25px',
-                  border: '1px solid #ccc',
-                  outline: 'none'
-                }}
-              />
-              <button
-                type="submit"
-                style={{
-                  marginLeft: '10px',
-                  padding: '10px 20px',
-                  borderRadius: '25px',
-                  background: '#007bff',
-                  color: 'white',
-                  border: 'none',
-                  cursor: 'pointer'
-                }}
-              >
-                Send
-              </button>
-            </form> */}
+           
           </>
         )}
       </div>
 
       {isGroupNameModalOpen && (
-  <div style={{
-    position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-    background: 'rgba(0,0,0,0.5)', display: 'flex',
-    justifyContent: 'center', alignItems: 'center', zIndex: 2000
-  }}>
-    <div style={{
-      background: 'white', padding: '20px', borderRadius: '12px',
-      width: '320px', boxShadow: '0 4px 15px rgba(0,0,0,0.3)'
-    }}>
-      <h3 style={{ marginTop: 0 }}>Group Name</h3>
-      <input
-        type="text"
-        placeholder="Enter group name..."
-        value={tempGroupName}
-        onChange={(e) => setTempGroupName(e.target.value)}
-        autoFocus
-        style={{
-          width: '100%', padding: '10px', marginBottom: '20px',
-          borderRadius: '6px', border: '1px solid #ccc', boxSizing: 'border-box'
-        }}
-        onKeyDown={(e) => e.key === 'Enter' && finalizeGroupCreation()}
-      />
-      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
-        <button 
-          onClick={() => setIsGroupNameModalOpen(false)}
-          style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#666' }}
-        >
-          Cancel
-        </button>
-        <button 
-          onClick={finalizeGroupCreation}
-          disabled={!tempGroupName.trim()}
-          style={{
-            padding: '8px 20px', background: '#007bff', color: 'white',
-            borderRadius: '6px', border: 'none', 
-            cursor: tempGroupName.trim() ? 'pointer' : 'not-allowed',
-            opacity: tempGroupName.trim() ? 1 : 0.5
-          }}
-        >
-          Create
-        </button>
-      </div>
-    </div>
-  </div>
-)}
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          background: 'rgba(0,0,0,0.5)', display: 'flex',
+          justifyContent: 'center', alignItems: 'center', zIndex: 2000
+        }}>
+          <div style={{
+            background: 'white', padding: '20px', borderRadius: '12px',
+            width: '320px', boxShadow: '0 4px 15px rgba(0,0,0,0.3)'
+          }}>
+            <h3 style={{ marginTop: 0 }}>Group Name</h3>
+            <input
+              type="text"
+              placeholder="Enter group name..."
+              value={tempGroupName}
+              onChange={(e) => setTempGroupName(e.target.value)}
+              autoFocus
+              style={{
+                width: '100%', padding: '10px', marginBottom: '20px',
+                borderRadius: '6px', border: '1px solid #ccc', boxSizing: 'border-box'
+              }}
+              onKeyDown={(e) => e.key === 'Enter' && finalizeGroupCreation()}
+            />
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+              <button
+                onClick={() => setIsGroupNameModalOpen(false)}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#666' }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={finalizeGroupCreation}
+                disabled={!tempGroupName.trim()}
+                style={{
+                  padding: '8px 20px', background: '#007bff', color: 'white',
+                  borderRadius: '6px', border: 'none',
+                  cursor: tempGroupName.trim() ? 'pointer' : 'not-allowed',
+                  opacity: tempGroupName.trim() ? 1 : 0.5
+                }}
+              >
+                Create
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   )

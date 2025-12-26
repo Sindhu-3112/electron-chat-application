@@ -9,7 +9,7 @@ import { io } from 'socket.io-client';
 
 // Use your actual backend Render URL here (without a trailing slash)
 const PRODUCTION_URL = 'https://electron-chat-application-3.onrender.com';
-const LOCAL_URL = 'http://localhost:4000';
+const LOCAL_URL = 'http://localhost:10000';
 
 const ENDPOINT = process.env.NODE_ENV === 'production' 
   ? PRODUCTION_URL 

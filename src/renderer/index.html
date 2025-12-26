@@ -4,19 +4,7 @@
     <meta charset="UTF-8" />
     <title>Electron</title>
    
-    <!-- <meta
-      http-equiv="Content-Security-Policy"
-          content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; connect-src 'self';"
- 
-      /> -->
-      <!-- <meta http-equiv="Content-Security-Policy" content="default-src 'self'; connect-src 'self' http://localhost:4000 ws://localhost:4000;"> -->
-
-<!-- Example: If your server is at http://localhost:4000 -->
-<!-- <meta http-equiv="Content-Security-Policy" content="
-  default-src 'self'; 
-  style-src 'self' 'unsafe-inline'; 
-  connect-src 'self' http://localhost:4000 ws://localhost:4000;
-"> -->
+    
 <meta http-equiv="Content-Security-Policy" content="
   default-src 'self';
   script-src 'self' 'unsafe-inline';
@@ -24,8 +12,8 @@
   connect-src 'self' 
     https://electron-chat-application-3.onrender.com 
     wss://electron-chat-application-3.onrender.com 
-    https://your-backend-service.onrender.com 
-    wss://your-backend-service.onrender.com;
+   http://localhost:10000 
+    ws://localhost:10000;
 ">
 
 
