@@ -34,6 +34,7 @@ io.on('connection', (socket) => {
   socket.on('registerName', (username) => {
     connectedUsers[socket.id] = username;
     console.log(`[REGISTER] User ${socket.id} registered as: ${username}`);
+     io.emit("user_list", Object.values(users)); 
     broadcastUserList(); 
   });
 
@@ -66,6 +67,7 @@ io.on('connection', (socket) => {
     const disconnectedUserName = connectedUsers[socket.id] || socket.id;
     console.log(`[DISCONNECT] User disconnected: ${disconnectedUserName} (${socket.id})`);
     delete connectedUsers[socket.id]; 
+     io.emit("user_list", Object.values(users));
     broadcastUserList();  
   });
 
