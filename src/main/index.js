@@ -148,6 +148,17 @@ function createTray() {
 // }
 
 app.whenReady().then(() => {
+
+   session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
+    callback({
+      responseHeaders: {
+        ...details.responseHeaders,
+        'Content-Security-Policy': [
+          "default-src 'self'; connect-src 'self' https://*.onrender.com wss://*.onrender.com"
+        ]
+      }
+    });
+  });
   createWindow()
   //  startServer()
     createTray()
