@@ -8,7 +8,7 @@
 import { io } from 'socket.io-client';
 
 // Use your actual backend Render URL here (without a trailing slash)
-const PRODUCTION_URL = 'https://your-backend-service.onrender.com';
+const PRODUCTION_URL = 'https://electron-chat-application-3.onrender.com';
 const LOCAL_URL = 'http://localhost:4000';
 
 const ENDPOINT = process.env.NODE_ENV === 'production' 
@@ -17,5 +17,6 @@ const ENDPOINT = process.env.NODE_ENV === 'production'
 
 export const socket = io(ENDPOINT, {
   transports: ['websocket', 'polling'], // Allow fallback to polling if websocket fails
-  secure: true                          // Ensure secure connection for production
+  secure: true,
+   upgrade: false,                        // Ensure secure connection for production
 });
