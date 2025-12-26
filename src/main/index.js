@@ -114,22 +114,28 @@ ipcMain.on('clear-store', () => {
     body: arg.body,
   }).show(); 
 });
-// Add this inside your main.js where your other ipcMain.on listeners are
+
 ipcMain.on('delete-message-permanently', (event, { chatPartnerId, messageId }) => {
-  // 1. Get current messages from store (use your actual key, e.g., 'messages')
-  const allMessages = store.get('messages') || {}; 
-  const chatHistory = allMessages[chatPartnerId] || [];
+  // 1. Get the full session object
+  const session = store.get('reactChatSession') || {};
+  const histories = session.histories || {};
 
-  // 2. Map through and change the specific message
-  const updatedHistory = chatHistory.map(msg => 
-    msg.id === messageId ? { ...msg, text: "🚫 This message was deleted", deleted: true } : msg
-  );
+  // 2. Loop through all history keys (e.g., HL_2zzWw2i...)
+  Object.keys(histories).forEach(key => {
+    histories[key] = histories[key].map(msg => {
+      if (msg.id === messageId) {
+        return { ...msg, text: "🚫 This message was deleted", deleted: true };
+      }
+      return msg;
+    });
+  });
 
-  // 3. Save it back to the disk
-  allMessages[chatPartnerId] = updatedHistory;
-  store.set('messages', allMessages);
-  console.log(`[STORE] Message ${messageId} deleted permanently for ${chatPartnerId}`);
+  // 3. Save the entire updated session back to disk
+  session.histories = histories;
+  store.set('reactChatSession', session);
+  console.log(`[DISK] Permanently deleted message ${messageId}`);
 });
+
 
 }
 

@@ -296,25 +296,32 @@ function ChatRoom() {
     return () => socket.off('newNotification');
   }, [socket]);
 
-  useEffect(() => {
+ useEffect(() => {
   socket.on('message_deleted', ({ messageId, chatPartnerId }) => {
     setAllChatMessages(prev => {
-      const chat = prev[chatPartnerId] || [];
-      const updatedChat = chat.map(msg => 
-        msg.id === messageId ? { ...msg, text: "🚫 This message was deleted", deleted: true } : msg
-      );
+      // Find the specific array in your histories object
+      // Note: In your JSON, the key is the Socket ID, but your app uses chatPartnerId
+      // We must map through the correct history key
+      const updatedHistories = { ...prev };
+      
+      Object.keys(updatedHistories).forEach(key => {
+        updatedHistories[key] = updatedHistories[key].map(msg => 
+          msg.id === messageId ? { ...msg, text: "🚫 This message was deleted", deleted: true } : msg
+        );
+      });
 
-      // SAVE TO DISK PERMANENTLY via the Preload Bridge
+      // Tell Main process to save the change to the .json file
       if (window.electronAPI && window.electronAPI.deleteMessagePermanently) {
         window.electronAPI.deleteMessagePermanently(chatPartnerId, messageId);
       }
 
-      return { ...prev, [chatPartnerId]: updatedChat };
+      return updatedHistories;
     });
   });
 
   return () => socket.off('message_deleted');
 }, []);
+
 
 
 
