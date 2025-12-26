@@ -10,8 +10,9 @@ const server = http.createServer(app);
 
 const io = socketIo(server, {
   cors: {
-    origin: '*',
-    methods: ["GET", "POST"]
+    origin: 'https://electron-chat-application-3.onrender.com',
+    methods: ["GET", "POST"],
+    credentials: true
   }
 });
 
