@@ -1231,7 +1231,7 @@ const handleFileChange = async (e) => {
             {/* In your message input rendering logic */}
             {disabledGroups.includes(activeRecipientId) ? (
               <div style={{ padding: '10px', backgroundColor: '#eee', textAlign: 'center', color: '#666' }}>
-                You are no longer a member of this group. You can only view the history.
+                You are no longer a member of this group. You can only view the history messages.
               </div>
             ) : (
               // <form onSubmit={sendMessage}>
