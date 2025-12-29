@@ -16,7 +16,7 @@ const ENDPOINT = process.env.NODE_ENV === 'production'
   : LOCAL_URL;
 
 export const socket = io(ENDPOINT, {
-  transports: ['websocket', 'polling'], // Allow fallback to polling if websocket fails
+  transports: ['websocket'], 
   secure: true,
-   upgrade: false,                        // Ensure secure connection for production
+   upgrade: false,                       
 });
