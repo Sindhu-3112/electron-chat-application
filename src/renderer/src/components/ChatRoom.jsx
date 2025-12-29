@@ -100,37 +100,85 @@ function ChatRoom() {
 
   //To send username to the socket server and handle incoming events
 
+  // useEffect(() => {
+  //   if (username) socket.emit('registerName', username)
+
+  //   socket.on('connect', () => {
+  //     if (username) socket.emit('registerName', username)
+  //   })
+
+  //   socket.on('updateUserList', (users) => {
+  //     setConnectedUsers(users.filter((user) => user.id !== socket.id))
+  //   })
+
+  //   socket.on('receivePrivateMessage', (data) => {
+  //     const { senderId, message } = data
+  //     if (senderId !== socket.id) {
+  //       addMessageToHistory({ ...message, isPrivate: true }, senderId)
+  //     }
+  //     if (senderId !== activeRecipientId) {
+  //       setUnreadCounts((prev) => ({
+  //         ...prev,
+  //         [senderId]: (prev[senderId] || 0) + 1
+  //       }));
+  //     }
+  //   })
+
+
+  //   return () => {
+  //     socket.off('connect')
+  //     socket.off('updateUserList')
+  //     socket.off('receivePrivateMessage')
+  //   }
+  // }, [username, addMessageToHistory])
+
   useEffect(() => {
-    if (username) socket.emit('registerName', username)
+  if (!username) return;
 
-    socket.on('connect', () => {
-      if (username) socket.emit('registerName', username)
-    })
+  // 1. Internal function to handle registration
+  const register = () => {
+    console.log("Registering user:", username);
+    socket.emit('registerName', username);
+  };
 
-    socket.on('updateUserList', (users) => {
-      setConnectedUsers(users.filter((user) => user.id !== socket.id))
-    })
+  // 2. Register immediately if already connected
+  if (socket.connected) {
+    register();
+  }
 
-    socket.on('receivePrivateMessage', (data) => {
-      const { senderId, message } = data
-      if (senderId !== socket.id) {
-        addMessageToHistory({ ...message, isPrivate: true }, senderId)
-      }
-      if (senderId !== activeRecipientId) {
-        setUnreadCounts((prev) => ({
-          ...prev,
-          [senderId]: (prev[senderId] || 0) + 1
-        }));
-      }
-    })
+  // 3. Define listeners
+  const onConnect = () => register();
+  
+  const onUpdateUserList = (users) => {
+    setConnectedUsers(users.filter((user) => user.id !== socket.id));
+  };
 
-
-    return () => {
-      socket.off('connect')
-      socket.off('updateUserList')
-      socket.off('receivePrivateMessage')
+  const onPrivateMsg = (data) => {
+    const { senderId, message } = data;
+    if (senderId !== socket.id) {
+      addMessageToHistory({ ...message, isPrivate: true }, senderId);
     }
-  }, [username, addMessageToHistory])
+    if (senderId !== activeRecipientId) {
+      setUnreadCounts((prev) => ({
+        ...prev,
+        [senderId]: (prev[senderId] || 0) + 1
+      }));
+    }
+  };
+
+  // 4. Attach listeners
+  socket.on('connect', onConnect);
+  socket.on('updateUserList', onUpdateUserList);
+  socket.on('receivePrivateMessage', onPrivateMsg);
+
+  // 5. CLEANUP: Remove specifically named functions
+  return () => {
+    socket.off('connect', onConnect);
+    socket.off('updateUserList', onUpdateUserList);
+    socket.off('receivePrivateMessage', onPrivateMsg);
+  };
+}, [username, addMessageToHistory, activeRecipientId]); // Added activeRecipientId to deps
+
 
   useEffect(() => {
     scrollToBottom()
