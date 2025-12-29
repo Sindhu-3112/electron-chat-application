@@ -18,5 +18,5 @@ const ENDPOINT = process.env.NODE_ENV === 'production'
 export const socket = io(ENDPOINT, {
   transports: ['websocket'], 
   secure: true,
-   upgrade: false,                       
+  upgrade: false,                       
 });
