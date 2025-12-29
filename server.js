@@ -36,6 +36,13 @@ io.on('connection', (socket) => {
   console.log(`[CONNECT] User connected: ${socket.id}`);
 
   socket.on('registerName', (username) => {
+     if (users[username]) {
+      const oldSocket = io.sockets.sockets.get(users[username]);
+      if (oldSocket) {
+        oldSocket.disconnect();
+        console.log(`[CLEANUP] Disconnected old session for ${username}`);
+      }
+    }
     connectedUsers[socket.id] = username;
     console.log(`[REGISTER] User ${socket.id} registered as: ${username}`);
     //  io.emit("user_list", Object.values(users)); 
