@@ -116,11 +116,11 @@ ipcMain.on('clear-store', () => {
 });
 
 ipcMain.on('delete-message-permanently', (event, { chatPartnerId, messageId }) => {
-  // 1. Get the full session object
+ 
   const session = store.get('reactChatSession') || {};
   const histories = session.histories || {};
 
-  // 2. Loop through all history keys (e.g., HL_2zzWw2i...)
+ 
   Object.keys(histories).forEach(key => {
     histories[key] = histories[key].map(msg => {
       if (msg.id === messageId) {
@@ -130,7 +130,7 @@ ipcMain.on('delete-message-permanently', (event, { chatPartnerId, messageId }) =
     });
   });
 
-  // 3. Save the entire updated session back to disk
+ 
   session.histories = histories;
   store.set('reactChatSession', session);
   console.log(`[DISK] Permanently deleted message ${messageId}`);

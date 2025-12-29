@@ -2,6 +2,7 @@ const express = require('express');
 const http = require('http');
 const socketIo = require('socket.io');
 const cors = require('cors');
+const fs = require('fs');
 
 
 const app = express();
@@ -9,6 +10,7 @@ app.use(cors({ origin: '*' }));
 const server = http.createServer(app);
 
 const io = socketIo(server, {
+     maxHttpBufferSize: 1e8,
   cors: {
     origin: 'https://electron-chat-application-3.onrender.com',
     //  origin: '*',
@@ -256,6 +258,31 @@ socket.on('delete_message', ({ messageId, recipientId, type }) => {
   socket.emit('message_deleted', { 
     messageId, 
     chatPartnerId: recipientId 
+  });
+});
+
+
+socket.on("upload", (file, callback) => {
+  // 1. Log receipt of data
+  console.log("Received upload request.");
+  console.log("Data type:", typeof file); 
+  
+  // Check if it's a Buffer and log its size in Megabytes
+  if (Buffer.isBuffer(file)) {
+    console.log(`File size: ${(file.length / (1024 * 1024)).toFixed(2)} MB`);
+  } else {
+    console.warn("Warning: Received data is not a Buffer. Check client-side emit.");
+  }
+
+  // 2. Attempt to save the file
+  fs.writeFile("./uploads/my-file-name", file, (err) => {
+    if (err) {
+      console.error("File Save Error:", err);
+      return callback({ status: "failed", error: err.message });
+    }
+
+    console.log("File saved successfully to disk.");
+    callback({ status: "success" });
   });
 });
 

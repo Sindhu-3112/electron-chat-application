@@ -30,7 +30,7 @@ function ChatRoom() {
 
 
 
-
+  const fileInputRef = useRef(null);
   const currentGroupMembers = roomMembers[activeRecipientId] || []
   const availableUsersToAdd = connectedUsers.filter(
     (user) =>
@@ -324,7 +324,35 @@ function ChatRoom() {
 
 
 
+const handleFileChange = async (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
 
+  // For 2025 chat apps, we convert the file to a Base64 string to send via Socket.io
+  const reader = new FileReader();
+  reader.onload = () => {
+    const messageData = {
+      id: Date.now().toString(),
+      user: username,
+      text: file.name,
+      fileData: reader.result,
+      fileName: file.name,
+      fileType: file.type,
+      timestamp: new Date(),
+      status: 'sent'
+    };
+
+    // Send via socket
+    socket.emit('private_message', { recipientId: activeRecipientId, ...messageData });
+    
+    // Update local UI
+    setAllChatMessages(prev => ({
+      ...prev,
+      [activeRecipientId]: [...(prev[activeRecipientId] || []), messageData]
+    }));
+  };
+  reader.readAsDataURL(file);
+};
   //To handle creating the group 
 
 
@@ -1007,8 +1035,26 @@ function ChatRoom() {
       border: msg.deleted ? '1px solid #ddd' : 'none'
     }}
   >
-    {/* 3. Show "Deleted" text instead of message if msg.deleted is true */}
-    {msg.deleted ? "🚫 This message was deleted" : msg.text}
+     {msg.fileData ? (
+    <div style={{ display: 'flex', flexDirection: 'column' }}>
+      {msg.fileType.startsWith('image/') ? (
+        <img src={msg.fileData} style={{ maxWidth: '200px', borderRadius: '8px' }} alt="sent file" />
+      ) : (
+        <span style={{ fontSize: '0.9em' }}>📄 {msg.fileName}</span>
+      )}
+      <a 
+        href={msg.fileData} 
+        download={msg.fileName} 
+        style={{ color: msg.user === username ? '#fff' : '#007bff', fontSize: '0.8em', marginTop: '5px' }}
+      >
+        Download
+      </a>
+    </div>
+  ) : (
+    msg.text
+  )}
+   
+    {/* {msg.deleted ? "🚫 This message was deleted" : msg.text} */}
 
     <div
       style={{
@@ -1140,14 +1186,40 @@ function ChatRoom() {
                 You are no longer a member of this group. You can only view the history.
               </div>
             ) : (
-              <form onSubmit={sendMessage}>
-                <input
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  placeholder="Type a message..."
-                />
-                <button type="submit">Send</button>
-              </form>
+              // <form onSubmit={sendMessage}>
+              //   <input
+              //     value={input}
+              //     onChange={(e) => setInput(e.target.value)}
+              //     placeholder="Type a message..."
+              //   />
+              //   <button type="submit">Send</button>
+              // </form>
+              <form onSubmit={sendMessage} style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+  {/* Hidden File Input */}
+  <input 
+    type="file" 
+    ref={fileInputRef} 
+    style={{ display: 'none' }} 
+    onChange={handleFileChange} 
+  />
+  
+  {/* Paperclip / Upload Button */}
+  <button 
+    type="button" 
+    onClick={() => fileInputRef.current.click()} 
+    style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.5em' }}
+  >
+    📎
+  </button>
+
+  <input
+    value={input}
+    onChange={(e) => setInput(e.target.value)}
+    placeholder="Type a message..."
+    style={{ flex: 1, padding: '10px', borderRadius: '20px', border: '1px solid #ccc' }}
+  />
+  <button type="submit">Send</button>
+</form>
             )}
 
            
