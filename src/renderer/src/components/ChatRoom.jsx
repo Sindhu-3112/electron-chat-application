@@ -57,10 +57,10 @@ function ChatRoom() {
     const data = { username: newUsername, histories: newHistories };
 
     if (window.electronAPI) {
-      // ELECTRON: Save to physical file
+     
       await window.electronAPI.setStoreData('reactChatSession', data);
     } else {
-      // BROWSER: Save to browser storage
+      
       localStorage.setItem('reactChatSession', JSON.stringify(data));
     }
   };
@@ -75,7 +75,7 @@ function ChatRoom() {
         const updatedMessagesForChat = [...(prevHistories[chatId] || []), message];
         const updatedHistories = { ...prevHistories, [chatId]: updatedMessagesForChat };
 
-        saveToStore(username, updatedHistories); // ✅ persist to Electron Store
+        saveToStore(username, updatedHistories); 
 
         return updatedHistories;
       });

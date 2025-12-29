@@ -20,6 +20,9 @@ let currentNotification;
 let serverProcess = null;
 
 app.setAppUserModelId(' com.electron.app') 
+
+socket = io ('https://electron-chat-application-3.onrender.com');
+
 function createWindow() {
 
 mainWindow = new BrowserWindow({
@@ -35,7 +38,7 @@ mainWindow = new BrowserWindow({
   })
 
   // socket = io('http://localhost:4000');
-  socket = io ('https://electron-chat-application-3.onrender.com');
+  // socket = io ('https://electron-chat-application-3.onrender.com');
 
   socket.on('connect', () => {
     console.log('Main process connected to socket');
