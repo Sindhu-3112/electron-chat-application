@@ -112,7 +112,7 @@ io.on('connection', (socket) => {
     console.log(`[GROUP] "${groupName}" created by ${socket.id}. Room ID: ${roomId}`)
   })
   socket.on('toggleAdmin', (data) => {
-    const { roomId, userId, action } = data // action: 'add' or 'remove'
+    const { roomId, userId, action } = data 
     const room = roomMetadata[roomId]
 
     // Only existing admins (including creator) can promote/demote others
