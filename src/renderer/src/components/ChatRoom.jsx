@@ -274,6 +274,8 @@ function ChatRoom() {
     return () => socket.off('newNotification')
   }, [socket])
 
+  // To handle message delete 
+
   useEffect(() => {
     socket.on('message_deleted', ({ messageId, chatPartnerId }) => {
       setAllChatMessages((prev) => {
@@ -288,7 +290,7 @@ function ChatRoom() {
           )
         })
 
-        // Tell Main process to save the change to the .json file
+       
         if (window.electronAPI && window.electronAPI.deleteMessagePermanently) {
           window.electronAPI.deleteMessagePermanently(chatPartnerId, messageId)
         }
