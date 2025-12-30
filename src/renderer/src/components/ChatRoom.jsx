@@ -10,7 +10,7 @@ import { v4 as uuidv4 } from 'uuid'
 function ChatRoom() {
   const [input, setInput] = useState('')
   // const [sessionData] = useState(getStoredSession())
-  const [username, setUsername] = useState(null);
+  const [username, setUsername] = useState(null)
   const [connectedUsers, setConnectedUsers] = useState([])
   const [selectedUsers, setSelectedUsers] = useState([])
   const [isCreatingGroup, setIsCreatingGroup] = useState(false)
@@ -20,17 +20,15 @@ function ChatRoom() {
   const [roomMembers, setRoomMembers] = useState({})
   const [isAddingMember, setIsAddingMember] = useState(false)
   const [selectedNewMembers, setSelectedNewMembers] = useState([])
-  const [activeMenuId, setActiveMenuId] = useState(null);
-  const [isLoaded, setIsLoaded] = useState(false);
-  const [unreadCounts, setUnreadCounts] = useState({});
-  const [disabledGroups, setDisabledGroups] = useState([]);
-  const [isGroupNameModalOpen, setIsGroupNameModalOpen] = useState(false);
-  const [tempGroupName, setTempGroupName] = useState('');
-  const [deleteModal, setDeleteModal] = useState({ visible: false, msgId: null, isOwn: false });
+  const [activeMenuId, setActiveMenuId] = useState(null)
+  const [isLoaded, setIsLoaded] = useState(false)
+  const [unreadCounts, setUnreadCounts] = useState({})
+  const [disabledGroups, setDisabledGroups] = useState([])
+  const [isGroupNameModalOpen, setIsGroupNameModalOpen] = useState(false)
+  const [tempGroupName, setTempGroupName] = useState('')
+  const [deleteModal, setDeleteModal] = useState({ visible: false, msgId: null, isOwn: false })
 
-
-
-  const fileInputRef = useRef(null);
+  const fileInputRef = useRef(null)
   const currentGroupMembers = roomMembers[activeRecipientId] || []
   const availableUsersToAdd = connectedUsers.filter(
     (user) =>
@@ -42,47 +40,40 @@ function ChatRoom() {
   const messagesEndRef = useRef(null)
   const inputRef = useRef(null)
 
-
   const activeRoom = connectedUsers.find((u) => u.id === activeRecipientId)
   const isCreator = activeRoom?.isGroup && activeRoom?.creator === socket.id
   const participants = roomMembers[activeRecipientId] || activeRoom?.members || []
 
-
   const saveToElectronStore = async (newUsername, newHistories) => {
-    if (!window.electronAPI) return;
-    await window.electronAPI.setStoreData('username', newUsername);
-    await window.electronAPI.setStoreData('histories', newHistories);
-  };
+    if (!window.electronAPI) return
+    await window.electronAPI.setStoreData('username', newUsername)
+    await window.electronAPI.setStoreData('histories', newHistories)
+  }
   const saveToStore = async (newUsername, newHistories) => {
-    const data = { username: newUsername, histories: newHistories };
+    const data = { username: newUsername, histories: newHistories }
 
     if (window.electronAPI) {
-     
-      await window.electronAPI.setStoreData('reactChatSession', data);
+      await window.electronAPI.setStoreData('reactChatSession', data)
     } else {
-      
-      localStorage.setItem('reactChatSession', JSON.stringify(data));
+      localStorage.setItem('reactChatSession', JSON.stringify(data))
     }
-  };
-
-
+  }
 
   const scrollToBottom = () => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
 
   const addMessageToHistory = useCallback(
     (message, chatId) => {
       setAllChatMessages((prevHistories) => {
-        const updatedMessagesForChat = [...(prevHistories[chatId] || []), message];
-        const updatedHistories = { ...prevHistories, [chatId]: updatedMessagesForChat };
+        const updatedMessagesForChat = [...(prevHistories[chatId] || []), message]
+        const updatedHistories = { ...prevHistories, [chatId]: updatedMessagesForChat }
 
-        saveToStore(username, updatedHistories); 
+        saveToStore(username, updatedHistories)
 
-        return updatedHistories;
-      });
+        return updatedHistories
+      })
     },
     [username]
-  );
-
+  )
 
   // To update group members when users added or removed from group
   useEffect(() => {
@@ -100,85 +91,36 @@ function ChatRoom() {
 
   //To send username to the socket server and handle incoming events
 
-  // useEffect(() => {
-  //   if (username) socket.emit('registerName', username)
-
-  //   socket.on('connect', () => {
-  //     if (username) socket.emit('registerName', username)
-  //   })
-
-  //   socket.on('updateUserList', (users) => {
-  //     setConnectedUsers(users.filter((user) => user.id !== socket.id))
-  //   })
-
-  //   socket.on('receivePrivateMessage', (data) => {
-  //     const { senderId, message } = data
-  //     if (senderId !== socket.id) {
-  //       addMessageToHistory({ ...message, isPrivate: true }, senderId)
-  //     }
-  //     if (senderId !== activeRecipientId) {
-  //       setUnreadCounts((prev) => ({
-  //         ...prev,
-  //         [senderId]: (prev[senderId] || 0) + 1
-  //       }));
-  //     }
-  //   })
-
-
-  //   return () => {
-  //     socket.off('connect')
-  //     socket.off('updateUserList')
-  //     socket.off('receivePrivateMessage')
-  //   }
-  // }, [username, addMessageToHistory])
-
   useEffect(() => {
-  if (!username) return;
+    if (username) socket.emit('registerName', username)
 
-  // 1. Internal function to handle registration
-  const register = () => {
-    console.log("Registering user:", username);
-    socket.emit('registerName', username);
-  };
+    socket.on('connect', () => {
+      if (username) socket.emit('registerName', username)
+    })
 
-  // 2. Register immediately if already connected
-  if (socket.connected) {
-    register();
-  }
+    socket.on('updateUserList', (users) => {
+      setConnectedUsers(users.filter((user) => user.id !== socket.id))
+    })
 
-  // 3. Define listeners
-  const onConnect = () => register();
-  
-  const onUpdateUserList = (users) => {
-    setConnectedUsers(users.filter((user) => user.id !== socket.id));
-  };
+    socket.on('receivePrivateMessage', (data) => {
+      const { senderId, message } = data
+      if (senderId !== socket.id) {
+        addMessageToHistory({ ...message, isPrivate: true }, senderId)
+      }
+      if (senderId !== activeRecipientId) {
+        setUnreadCounts((prev) => ({
+          ...prev,
+          [senderId]: (prev[senderId] || 0) + 1
+        }))
+      }
+    })
 
-  const onPrivateMsg = (data) => {
-    const { senderId, message } = data;
-    if (senderId !== socket.id) {
-      addMessageToHistory({ ...message, isPrivate: true }, senderId);
+    return () => {
+      socket.off('connect')
+      socket.off('updateUserList')
+      socket.off('receivePrivateMessage')
     }
-    if (senderId !== activeRecipientId) {
-      setUnreadCounts((prev) => ({
-        ...prev,
-        [senderId]: (prev[senderId] || 0) + 1
-      }));
-    }
-  };
-
-  // 4. Attach listeners
-  socket.on('connect', onConnect);
-  socket.on('updateUserList', onUpdateUserList);
-  socket.on('receivePrivateMessage', onPrivateMsg);
-
-  // 5. CLEANUP: Remove specifically named functions
-  return () => {
-    socket.off('connect', onConnect);
-    socket.off('updateUserList', onUpdateUserList);
-    socket.off('receivePrivateMessage', onPrivateMsg);
-  };
-}, [username, addMessageToHistory, activeRecipientId]); // Added activeRecipientId to deps
-
+  }, [username, addMessageToHistory])
 
   useEffect(() => {
     scrollToBottom()
@@ -204,7 +146,6 @@ function ChatRoom() {
       })
     })
 
-
     socket.on('updateRoomParticipants', ({ roomId, members }) => {
       setRoomMembers((prev) => ({ ...prev, [roomId]: members }))
 
@@ -223,7 +164,6 @@ function ChatRoom() {
       socket.emit('joinGroupRoom', roomId)
 
       setConnectedUsers((prev) => {
-
         if (prev.find((u) => u.id === roomId)) return prev
 
         return [
@@ -240,13 +180,13 @@ function ChatRoom() {
     })
 
     socket.on('receiveGroupMessage', (data) => {
-      const { roomId, message } = data;
+      const { roomId, message } = data
 
       if (roomId !== activeRecipientId) {
         setUnreadCounts((prev) => ({
           ...prev,
           [roomId]: (prev[roomId] || 0) + 1
-        }));
+        }))
       }
       addMessageToHistory({ ...data.message, isGroup: true }, data.roomId)
     })
@@ -259,171 +199,159 @@ function ChatRoom() {
 
   //To handle chat room when the user removed from the group
 
-
   useEffect(() => {
     socket.on('removedFromGroup', ({ roomId }) => {
-
-      setDisabledGroups((prev) => [...prev, roomId]);
-
+      setDisabledGroups((prev) => [...prev, roomId])
 
       if (activeRecipientId === roomId) {
-        alert("You have been removed from this group. You can still view history.");
+        alert('You have been removed from this group. You can still view history.')
       }
-    });
+    })
 
-    return () => socket.off('removedFromGroup');
-  }, [activeRecipientId]);
+    return () => socket.off('removedFromGroup')
+  }, [activeRecipientId])
   useEffect(() => {
     if (activeRecipientId) {
       setUnreadCounts((prev) => ({
         ...prev,
         [activeRecipientId]: 0
-      }));
+      }))
     }
-  }, [activeRecipientId]);
-
-
+  }, [activeRecipientId])
 
   // To handle creating a new group with selected user and named the group
 
-
   useEffect(() => {
     const loadData = async () => {
-      let session;
+      let session
 
       if (window.electronAPI) {
-
-        session = await window.electronAPI.getStoreData('reactChatSession');
+        session = await window.electronAPI.getStoreData('reactChatSession')
       } else {
-
-        const localData = localStorage.getItem('reactChatSession');
-        session = localData ? JSON.parse(localData) : null;
+        const localData = localStorage.getItem('reactChatSession')
+        session = localData ? JSON.parse(localData) : null
       }
 
       if (session) {
-        if (session.username) setUsername(session.username);
-        if (session.histories) setAllChatMessages(session.histories);
+        if (session.username) setUsername(session.username)
+        if (session.histories) setAllChatMessages(session.histories)
       }
-      setIsLoaded(true);
-    };
+      setIsLoaded(true)
+    }
 
-    loadData();
-  }, []);
+    loadData()
+  }, [])
 
-  //To handle group disable for the user removed from the group 
+  //To handle group disable for the user removed from the group
   useEffect(() => {
     socket.on('groupDisabled', ({ roomId }) => {
-      setDisabledGroups(prev => [...prev, roomId]);
-    });
+      setDisabledGroups((prev) => [...prev, roomId])
+    })
 
-    return () => socket.off('groupDisabled');
-  }, []);
+    return () => socket.off('groupDisabled')
+  }, [])
 
-  //To handle notification 
+  //To handle notification
   useEffect(() => {
     socket.on('newNotification', (data) => {
-      console.log("Notification received:", data);
+      console.log('Notification received:', data)
 
+      if (!('Notification' in window)) return
 
-      if (!("Notification" in window)) return;
-
-
-      if (Notification.permission === "granted") {
+      if (Notification.permission === 'granted') {
         new Notification(`New Message from ${data.from}`, {
-          body: data.text,
-        });
-      } else if (Notification.permission !== "denied") {
+          body: data.text
+        })
+      } else if (Notification.permission !== 'denied') {
         Notification.requestPermission().then((permission) => {
-          if (permission === "granted") {
-            new Notification(`New Message from ${data.from}`, { body: data.text });
+          if (permission === 'granted') {
+            new Notification(`New Message from ${data.from}`, { body: data.text })
           }
-        });
+        })
       }
-    });
+    })
 
-    return () => socket.off('newNotification');
-  }, [socket]);
+    return () => socket.off('newNotification')
+  }, [socket])
 
- useEffect(() => {
-  socket.on('message_deleted', ({ messageId, chatPartnerId }) => {
-    setAllChatMessages(prev => {
-      // Find the specific array in your histories object
-      // Note: In your JSON, the key is the Socket ID, but your app uses chatPartnerId
-      // We must map through the correct history key
-      const updatedHistories = { ...prev };
-      
-      Object.keys(updatedHistories).forEach(key => {
-        updatedHistories[key] = updatedHistories[key].map(msg => 
-          msg.id === messageId ? { ...msg, text: "🚫 This message was deleted", deleted: true } : msg
-        );
-      });
+  useEffect(() => {
+    socket.on('message_deleted', ({ messageId, chatPartnerId }) => {
+      setAllChatMessages((prev) => {
+       
+        const updatedHistories = { ...prev }
 
-      // Tell Main process to save the change to the .json file
-      if (window.electronAPI && window.electronAPI.deleteMessagePermanently) {
-        window.electronAPI.deleteMessagePermanently(chatPartnerId, messageId);
-      }
+        Object.keys(updatedHistories).forEach((key) => {
+          updatedHistories[key] = updatedHistories[key].map((msg) =>
+            msg.id === messageId
+              ? { ...msg, text: '🚫 This message was deleted', deleted: true }
+              : msg
+          )
+        })
 
-      return updatedHistories;
-    });
-  });
+        // Tell Main process to save the change to the .json file
+        if (window.electronAPI && window.electronAPI.deleteMessagePermanently) {
+          window.electronAPI.deleteMessagePermanently(chatPartnerId, messageId)
+        }
 
-  return () => socket.off('message_deleted');
-}, []);
+        return updatedHistories
+      })
+    })
 
-
+    return () => socket.off('message_deleted')
+  }, [])
 
 const handleFileChange = async (e) => {
   const file = e.target.files[0];
   if (!file) return;
 
-  // For 2025 chat apps, we convert the file to a Base64 string to send via Socket.io
   const reader = new FileReader();
   reader.onload = () => {
     const messageData = {
-      id: Date.now().toString(),
+      id: uuidv4(), // Use same ID generator as your text messages
       user: username,
       text: file.name,
       fileData: reader.result,
       fileName: file.name,
       fileType: file.type,
-      timestamp: new Date(),
+      timestamp: new Date().toISOString(),
       status: 'sent'
     };
 
-    // Send via socket
-    socket.emit('private_message', { recipientId: activeRecipientId, ...messageData });
-    
+    // Use the same event name as your text messages!
+    if (activeRecipientId.startsWith('room_')) {
+      socket.emit('sendGroupMessage', { roomId: activeRecipientId, message: messageData });
+    } else {
+      socket.emit('sendPrivateMessage', { recipientId: activeRecipientId, message: messageData });
+    }
+
     // Update local UI
-    setAllChatMessages(prev => ({
-      ...prev,
-      [activeRecipientId]: [...(prev[activeRecipientId] || []), messageData]
-    }));
+    addMessageToHistory({ ...messageData, isPrivate: true }, activeRecipientId);
   };
   reader.readAsDataURL(file);
 };
-  //To handle creating the group 
 
+  //To handle creating the group
 
   const handleCreateGroupSubmit = () => {
     if (selectedUsers.length > 0) {
-      setIsGroupNameModalOpen(true);
+      setIsGroupNameModalOpen(true)
     }
-  };
+  }
 
   const finalizeGroupCreation = () => {
     if (tempGroupName.trim()) {
       socket.emit('createGroup', {
         groupName: tempGroupName,
         userIds: [...selectedUsers, socket.id]
-      });
+      })
 
       // Reset everything
-      setIsCreatingGroup(false);
-      setIsGroupNameModalOpen(false);
-      setSelectedUsers([]);
-      setTempGroupName('');
+      setIsCreatingGroup(false)
+      setIsGroupNameModalOpen(false)
+      setSelectedUsers([])
+      setTempGroupName('')
     }
-  };
+  }
 
   //To handle sending messages to private and group chat from the input box
 
@@ -450,35 +378,33 @@ const handleFileChange = async (e) => {
   useEffect(() => {
     // Listen for data forwarded from main.js
     const handleMainMessage = (event, data) => {
-      addMessageToHistory(data.message, data.senderId);
-    };
+      addMessageToHistory(data.message, data.senderId)
+    }
 
     if (window.electronAPI) {
-      window.electronAPI.onSocketData(handleMainMessage);
+      window.electronAPI.onSocketData(handleMainMessage)
     }
-  }, [addMessageToHistory]);
-
+  }, [addMessageToHistory])
 
   //To handle user name submission
   const handleNameSubmit = (e) => {
-    e.preventDefault();
-    const name = input.trim();
+    e.preventDefault()
+    const name = input.trim()
 
     if (name) {
-      setUsername(name);
-      socket.emit('registerName', name);
-      window.electronAPI.registerSocketUser(name);
-      saveToStore(name, allChatMessages); // ✅
+      setUsername(name)
+      socket.emit('registerName', name)
+      window.electronAPI.registerSocketUser(name)
+      saveToStore(name, allChatMessages) // ✅
     }
-  };
-
+  }
 
   const handleLogout = () => {
-    setUsername(null);
-    setAllChatMessages({ 'PUBLIC': [] });
-    window.electronAPI.clearStore();
-    window.location.reload();
-  };
+    setUsername(null)
+    setAllChatMessages({ PUBLIC: [] })
+    window.electronAPI.clearStore()
+    window.location.reload()
+  }
   //To get recipient name either group or private chat
   const getRecipientName = (id) => {
     const user = connectedUsers.find((u) => u.id === id)
@@ -491,33 +417,28 @@ const handleFileChange = async (e) => {
   }
 
   const handleParticipantAction = (memberId, memberName) => {
-
-    if (memberId === socket.id) return;
+    if (memberId === socket.id) return
 
     if (isCreator) {
-
       const choice = window.confirm(
         `Options for ${memberName}:\n\n- Click OK to REMOVE from group\n- Click CANCEL to Open Private Chat`
-      );
+      )
 
       if (choice) {
-
         socket.emit('updateGroupMembers', {
           roomId: activeRecipientId,
           userId: memberId,
-          action: 'remove',
-        });
+          action: 'remove'
+        })
       } else {
-
-        setActiveRecipientId(memberId);
+        setActiveRecipientId(memberId)
       }
     } else {
-
-      setActiveRecipientId(memberId);
+      setActiveRecipientId(memberId)
     }
-  };
+  }
 
-  if (!isLoaded) return <div>Loading...</div>;
+  if (!isLoaded) return <div>Loading...</div>
 
   if (!username) {
     return (
@@ -636,7 +557,7 @@ const handleFileChange = async (e) => {
           <p style={{ color: 'gray' }}>No users</p>
         ) : (
           connectedUsers.map((user) => {
-            const isDisabled = disabledGroups.includes(user.id);
+            const isDisabled = disabledGroups.includes(user.id)
 
             return (
               <button
@@ -657,9 +578,10 @@ const handleFileChange = async (e) => {
                   opacity: isDisabled ? 0.7 : 1
                 }}
               >
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div
+                  style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+                >
                   <div style={{ display: 'flex', alignItems: 'center' }}>
-                   
                     {isCreatingGroup && !user.isGroup && !isDisabled && (
                       <input
                         type="checkbox"
@@ -673,7 +595,9 @@ const handleFileChange = async (e) => {
 
                     <span>
                       {user.name}
-                      {isDisabled && <small style={{ marginLeft: '5px', fontStyle: 'italic' }}>(Removed)</small>}
+                      {isDisabled && (
+                        <small style={{ marginLeft: '5px', fontStyle: 'italic' }}>(Removed)</small>
+                      )}
                     </span>
                   </div>
 
@@ -696,10 +620,9 @@ const handleFileChange = async (e) => {
                   )}
                 </div>
               </button>
-            );
+            )
           })
         )}
-
       </div>
 
       {/* Main Area */}
@@ -768,24 +691,18 @@ const handleFileChange = async (e) => {
                 <div style={{ fontSize: '0.85em', color: '#888' }}>
                   <strong>Members: </strong>
 
-
-
-
-
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '10px' }}>
                     {participants.map((m) => {
-
-                      const memberId = typeof m === 'string' ? m : m.id;
-                      const memberName = typeof m === 'string' ? getRecipientName(m) : m.name;
+                      const memberId = typeof m === 'string' ? m : m.id
+                      const memberName = typeof m === 'string' ? getRecipientName(m) : m.name
 
                       return (
                         <div key={memberId} style={{ position: 'relative' }}>
-
                           <div
                             onClick={(e) => {
-                              e.stopPropagation();
+                              e.stopPropagation()
 
-                              setActiveMenuId(activeMenuId === memberId ? null : memberId);
+                              setActiveMenuId(activeMenuId === memberId ? null : memberId)
                             }}
                             style={{
                               backgroundColor: '#007bff',
@@ -799,34 +716,45 @@ const handleFileChange = async (e) => {
                               alignItems: 'center'
                             }}
                           >
-                            {memberName} {memberId !== socket.id && <span style={{ marginLeft: '8px', fontSize: '0.7em' }}>▼</span>}
+                            {memberName}{' '}
+                            {memberId !== socket.id && (
+                              <span style={{ marginLeft: '8px', fontSize: '0.7em' }}>▼</span>
+                            )}
                           </div>
 
-
                           {activeMenuId === memberId && memberId !== socket.id && (
-                            <div style={{
-                              position: 'absolute',
-                              top: '35px',
-                              left: '0',
-                              backgroundColor: 'white',
-                              boxShadow: '0px 4px 10px rgba(0,0,0,0.2)',
-                              borderRadius: '8px',
-                              zIndex: 100,
-                              minWidth: '160px',
-                              border: '1px solid #ddd',
-                              overflow: 'hidden'
-                            }}>
-
+                            <div
+                              style={{
+                                position: 'absolute',
+                                top: '35px',
+                                left: '0',
+                                backgroundColor: 'white',
+                                boxShadow: '0px 4px 10px rgba(0,0,0,0.2)',
+                                borderRadius: '8px',
+                                zIndex: 100,
+                                minWidth: '160px',
+                                border: '1px solid #ddd',
+                                overflow: 'hidden'
+                              }}
+                            >
                               <button
                                 onClick={() => {
-                                  setActiveRecipientId(memberId);
-                                  setActiveMenuId(null);
+                                  setActiveRecipientId(memberId)
+                                  setActiveMenuId(null)
                                 }}
-                                style={{ display: 'block', width: '100%', padding: '10px', textAlign: 'left', border: 'none', background: 'none', cursor: 'pointer', borderBottom: '1px solid #eee' }}
+                                style={{
+                                  display: 'block',
+                                  width: '100%',
+                                  padding: '10px',
+                                  textAlign: 'left',
+                                  border: 'none',
+                                  background: 'none',
+                                  cursor: 'pointer',
+                                  borderBottom: '1px solid #eee'
+                                }}
                               >
                                 Private Message
                               </button>
-
 
                               {isCreator && (
                                 <button
@@ -835,10 +763,19 @@ const handleFileChange = async (e) => {
                                       roomId: activeRecipientId,
                                       userId: memberId,
                                       action: 'remove'
-                                    });
-                                    setActiveMenuId(null);
+                                    })
+                                    setActiveMenuId(null)
                                   }}
-                                  style={{ display: 'block', width: '100%', padding: '10px', textAlign: 'left', border: 'none', background: 'none', color: 'red', cursor: 'pointer' }}
+                                  style={{
+                                    display: 'block',
+                                    width: '100%',
+                                    padding: '10px',
+                                    textAlign: 'left',
+                                    border: 'none',
+                                    background: 'none',
+                                    color: 'red',
+                                    cursor: 'pointer'
+                                  }}
                                 >
                                   Remove
                                 </button>
@@ -849,8 +786,6 @@ const handleFileChange = async (e) => {
                       )
                     })}
                   </div>
-
-
 
                   {isCreator && (
                     <button
@@ -977,22 +912,27 @@ const handleFileChange = async (e) => {
                 </div>
               )}
 
-              {(allChatMessages[activeRecipientId] || []).map((msg, index) => (
+              {(allChatMessages[activeRecipientId] || []).map((msg, index) =>
                 msg.isSystem ? (
                   /* WhatsApp-style System Message */
-                  <div key={index} style={{
-                    textAlign: 'center',
-                    margin: '15px 0',
-                    width: '100%'
-                  }}>
-                    <span style={{
-                      backgroundColor: '#e1f3fb',
-                      color: '#54656f',
-                      padding: '5px 12px',
-                      borderRadius: '8px',
-                      fontSize: '0.8em',
-                      boxShadow: '0 1px 1px rgba(0,0,0,0.1)'
-                    }}>
+                  <div
+                    key={index}
+                    style={{
+                      textAlign: 'center',
+                      margin: '15px 0',
+                      width: '100%'
+                    }}
+                  >
+                    <span
+                      style={{
+                        backgroundColor: '#e1f3fb',
+                        color: '#54656f',
+                        padding: '5px 12px',
+                        borderRadius: '8px',
+                        fontSize: '0.8em',
+                        boxShadow: '0 1px 1px rgba(0,0,0,0.1)'
+                      }}
+                    >
                       {msg.text}
                     </span>
                   </div>
@@ -1042,48 +982,52 @@ const handleFileChange = async (e) => {
                   //   </div>
                   // </div>
                   <div
-  key={msg.id}
-  style={{
-    marginBottom: '10px',
-    textAlign: msg.user === username ? 'right' : 'left'
-  }}
-  // 1. Right-click opens the centered delete modal
-  onContextMenu={(e) => {
-    e.preventDefault();
-    setDeleteModal({ 
-      visible: true, 
-      msgId: msg.id, 
-      isOwn: msg.user === username 
-    });
-  }}
->
-  {activeRecipientId.startsWith('room_') && msg.user !== username && (
-    <div
-      style={{
-        fontWeight: 'bold',
-        fontSize: '0.75em',
-        marginBottom: '4px',
-        color: '#555'
-      }}
-    >
-      {msg.user}
-    </div>
-  )}
-  <div
-    style={{
-      display: 'inline-block',
-      padding: '10px 15px',
-      borderRadius: '18px',
-      // 2. Change color and font if message is deleted
-      backgroundColor: msg.deleted ? '#f0f0f0' : (msg.user === username ? '#007bff' : '#e9e9e9'),
-      color: msg.deleted ? '#999' : (msg.user === username ? 'white' : 'black'),
-      fontStyle: msg.deleted ? 'italic' : 'normal',
-      maxWidth: '70%',
-      position: 'relative',
-      border: msg.deleted ? '1px solid #ddd' : 'none'
-    }}
-  >
-     {msg.fileData ? (
+                    key={msg.id}
+                    style={{
+                      marginBottom: '10px',
+                      textAlign: msg.user === username ? 'right' : 'left'
+                    }}
+                    // 1. Right-click opens the centered delete modal
+                    onContextMenu={(e) => {
+                      e.preventDefault()
+                      setDeleteModal({
+                        visible: true,
+                        msgId: msg.id,
+                        isOwn: msg.user === username
+                      })
+                    }}
+                  >
+                    {activeRecipientId.startsWith('room_') && msg.user !== username && (
+                      <div
+                        style={{
+                          fontWeight: 'bold',
+                          fontSize: '0.75em',
+                          marginBottom: '4px',
+                          color: '#555'
+                        }}
+                      >
+                        {msg.user}
+                      </div>
+                    )}
+                    <div
+                      style={{
+                        display: 'inline-block',
+                        padding: '10px 15px',
+                        borderRadius: '18px',
+                        // 2. Change color and font if message is deleted
+                        backgroundColor: msg.deleted
+                          ? '#f0f0f0'
+                          : msg.user === username
+                            ? '#007bff'
+                            : '#e9e9e9',
+                        color: msg.deleted ? '#999' : msg.user === username ? 'white' : 'black',
+                        fontStyle: msg.deleted ? 'italic' : 'normal',
+                        maxWidth: '70%',
+                        position: 'relative',
+                        border: msg.deleted ? '1px solid #ddd' : 'none'
+                      }}
+                    >
+                      {/* {msg.fileData ? (
     <div style={{ display: 'flex', flexDirection: 'column' }}>
       {msg.fileType.startsWith('image/') ? (
         <img src={msg.fileData} style={{ maxWidth: '200px', borderRadius: '8px' }} alt="sent file" />
@@ -1100,138 +1044,189 @@ const handleFileChange = async (e) => {
     </div>
   ) : (
     msg.text
-  )}
-   
-    {/* {msg.deleted ? "🚫 This message was deleted" : msg.text} */}
+  )} */}
 
-    <div
-      style={{
-        fontSize: '0.65em',
-        marginTop: '4px',
-        textAlign: 'right',
-        opacity: 0.7,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'flex-end',
-        gap: '4px'
-      }}
-    >
-      {formatTime(msg.timestamp)}
+                      {msg.fileData ? (
+                        <div style={{ display: 'flex', flexDirection: 'column' }}>
+                          {msg.fileType?.startsWith('image/') ? (
+                            <img
+                              src={msg.fileData}
+                              style={{ maxWidth: '200px', borderRadius: '8px' }}
+                              alt="sent file"
+                            />
+                          ) : (
+                            <span style={{ fontSize: '0.9em' }}>📄 {msg.fileName}</span>
+                          )}
+                          <a
+                            href={msg.fileData}
+                            download={msg.fileName}
+                            style={{
+                              color: msg.user === username ? '#fff' : '#007bff',
+                              fontSize: '0.8em',
+                              marginTop: '5px',
+                              textDecoration: 'underline'
+                            }}
+                          >
+                            Download
+                          </a>
+                          {/* Also display caption text if a file has text with it */}
+                          {msg.text && (
+                            <p style={{ marginTop: '5px', fontSize: '0.9em' }}>{msg.text}</p>
+                          )}
+                        </div>
+                      ) : (
+                        <span>{msg.text}</span>
+                      )}
 
-      {/* 4. WhatsApp-style Status Ticks (Only for non-deleted messages sent by you) */}
-      {!msg.deleted && msg.user === username && (
-        <span style={{ 
-          color: msg.status === 'seen' ? '#34b7f1' : 'inherit',
-          fontSize: '1.1em',
-          fontWeight: 'bold'
-        }}>
-          {msg.status === 'seen' ? '✓✓' : '✓'}
-        </span>
-      )}
-    </div>
-  </div>
-  {/* CENTERED DELETE MODAL */}
-{deleteModal.visible && (
-  <div 
-    style={{
-      position: 'fixed', 
-      top: 0, 
-      left: 0, 
-      width: '100vw', 
-      height: '100vh',
-      backgroundColor: 'rgba(0,0,0,0.6)', 
-      display: 'flex', 
-      justifyContent: 'center', 
-      alignItems: 'center', 
-      zIndex: 99999
-    }} 
-    onClick={() => setDeleteModal({ visible: false, msgId: null, isOwn: false })}
-  >
-    <div 
-      style={{
-        backgroundColor: 'white', 
-        padding: '25px', 
-        borderRadius: '16px',
-        width: '320px', 
-        textAlign: 'center', 
-        boxShadow: '0 10px 30px rgba(0,0,0,0.3)'
-      }} 
-      onClick={e => e.stopPropagation()} // Prevents closing when clicking inside the box
-    >
-      <h3 style={{ margin: '0 0 10px 0', fontSize: '1.2em' }}>Delete message?</h3>
-      <p style={{ color: '#666', fontSize: '0.9em', marginBottom: '20px' }}>
-        Are you sure you want to delete this message?
-      </p>
+                      <div
+                        style={{
+                          fontSize: '0.65em',
+                          marginTop: '4px',
+                          textAlign: 'right',
+                          opacity: 0.7,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'flex-end',
+                          gap: '4px'
+                        }}
+                      >
+                        {formatTime(msg.timestamp)}
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-        {/* OPTION 1: Delete for Everyone (Only shows if you are the sender) */}
-        {deleteModal.isOwn && (
-          <button 
-            style={{ 
-              padding: '12px', background: '#ff3b30', color: 'white', 
-              border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' 
-            }}
-            onClick={() => {
-              socket.emit('delete_message', { 
-                messageId: deleteModal.msgId, 
-                recipientId: activeRecipientId, 
-                type: 'everyone' 
-              });
-              setDeleteModal({ visible: false, msgId: null, isOwn: false });
-            }}
-          >
-            Delete for everyone
-          </button>
-        )}
+                        {/* 4. WhatsApp-style Status Ticks (Only for non-deleted messages sent by you) */}
+                        {!msg.deleted && msg.user === username && (
+                          <span
+                            style={{
+                              color: msg.status === 'seen' ? '#34b7f1' : 'inherit',
+                              fontSize: '1.1em',
+                              fontWeight: 'bold'
+                            }}
+                          >
+                            {msg.status === 'seen' ? '✓✓' : '✓'}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    {/* CENTERED DELETE MODAL */}
+                    {deleteModal.visible && (
+                      <div
+                        style={{
+                          position: 'fixed',
+                          top: 0,
+                          left: 0,
+                          width: '100vw',
+                          height: '100vh',
+                          backgroundColor: 'rgba(0,0,0,0.6)',
+                          display: 'flex',
+                          justifyContent: 'center',
+                          alignItems: 'center',
+                          zIndex: 99999
+                        }}
+                        onClick={() =>
+                          setDeleteModal({ visible: false, msgId: null, isOwn: false })
+                        }
+                      >
+                        <div
+                          style={{
+                            backgroundColor: 'white',
+                            padding: '25px',
+                            borderRadius: '16px',
+                            width: '320px',
+                            textAlign: 'center',
+                            boxShadow: '0 10px 30px rgba(0,0,0,0.3)'
+                          }}
+                          onClick={(e) => e.stopPropagation()} // Prevents closing when clicking inside the box
+                        >
+                          <h3 style={{ margin: '0 0 10px 0', fontSize: '1.2em' }}>
+                            Delete message?
+                          </h3>
+                          <p style={{ color: '#666', fontSize: '0.9em', marginBottom: '20px' }}>
+                            Are you sure you want to delete this message?
+                          </p>
 
-        {/* OPTION 2: Delete for Me */}
-        <button 
-          style={{ 
-            padding: '12px', background: '#f0f2f5', border: 'none', 
-            borderRadius: '8px', cursor: 'pointer' 
-          }}
-          onClick={() => {
-            socket.emit('delete_message', { 
-              messageId: deleteModal.msgId, 
-              recipientId: activeRecipientId, 
-              type: 'me' 
-            });
-            setDeleteModal({ visible: false, msgId: null, isOwn: false });
-          }}
-        >
-          Delete for me
-        </button>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                            {/* OPTION 1: Delete for Everyone (Only shows if you are the sender) */}
+                            {deleteModal.isOwn && (
+                              <button
+                                style={{
+                                  padding: '12px',
+                                  background: '#ff3b30',
+                                  color: 'white',
+                                  border: 'none',
+                                  borderRadius: '8px',
+                                  cursor: 'pointer',
+                                  fontWeight: 'bold'
+                                }}
+                                onClick={() => {
+                                  socket.emit('delete_message', {
+                                    messageId: deleteModal.msgId,
+                                    recipientId: activeRecipientId,
+                                    type: 'everyone'
+                                  })
+                                  setDeleteModal({ visible: false, msgId: null, isOwn: false })
+                                }}
+                              >
+                                Delete for everyone
+                              </button>
+                            )}
 
-        {/* OPTION 3: Cancel */}
-        <button 
-          style={{ 
-            padding: '10px', background: 'none', border: 'none', 
-            color: '#007bff', cursor: 'pointer' 
-          }}
-          onClick={() => setDeleteModal({ visible: false, msgId: null, isOwn: false })}
-        >
-          Cancel
-        </button>
-      </div>
-    </div>
-  </div>
-)}
+                            {/* OPTION 2: Delete for Me */}
+                            <button
+                              style={{
+                                padding: '12px',
+                                background: '#f0f2f5',
+                                border: 'none',
+                                borderRadius: '8px',
+                                cursor: 'pointer'
+                              }}
+                              onClick={() => {
+                                socket.emit('delete_message', {
+                                  messageId: deleteModal.msgId,
+                                  recipientId: activeRecipientId,
+                                  type: 'me'
+                                })
+                                setDeleteModal({ visible: false, msgId: null, isOwn: false })
+                              }}
+                            >
+                              Delete for me
+                            </button>
 
-</div>
-
+                            {/* OPTION 3: Cancel */}
+                            <button
+                              style={{
+                                padding: '10px',
+                                background: 'none',
+                                border: 'none',
+                                color: '#007bff',
+                                cursor: 'pointer'
+                              }}
+                              onClick={() =>
+                                setDeleteModal({ visible: false, msgId: null, isOwn: false })
+                              }
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 )
-              ))}
-
-
-
+              )}
 
               <div ref={messagesEndRef} />
             </div>
 
             {/* In your message input rendering logic */}
             {disabledGroups.includes(activeRecipientId) ? (
-              <div style={{ padding: '10px', backgroundColor: '#eee', textAlign: 'center', color: '#666' }}>
-                You are no longer a member of this group. You can only view the history messages.
+              <div
+                style={{
+                  padding: '10px',
+                  backgroundColor: '#eee',
+                  textAlign: 'center',
+                  color: '#666'
+                }}
+              >
+                You are no longer a member of this group. You can only view the history.
               </div>
             ) : (
               // <form onSubmit={sendMessage}>
@@ -1242,49 +1237,74 @@ const handleFileChange = async (e) => {
               //   />
               //   <button type="submit">Send</button>
               // </form>
-              <form onSubmit={sendMessage} style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-  {/* Hidden File Input */}
-  <input 
-    type="file" 
-    ref={fileInputRef} 
-    style={{ display: 'none' }} 
-    onChange={handleFileChange} 
-  />
-  
-  {/* Paperclip / Upload Button */}
-  <button 
-    type="button" 
-    onClick={() => fileInputRef.current.click()} 
-    style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.5em' }}
-  >
-    📎
-  </button>
+              <form
+                onSubmit={sendMessage}
+                style={{ display: 'flex', alignItems: 'center', gap: '10px' }}
+              >
+                {/* Hidden File Input */}
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  style={{ display: 'none' }}
+                  onChange={handleFileChange}
+                />
 
-  <input
-    value={input}
-    onChange={(e) => setInput(e.target.value)}
-    placeholder="Type a message..."
-    style={{ flex: 1, padding: '10px', borderRadius: '20px', border: '1px solid #ccc' }}
-  />
-  <button type="submit">Send</button>
-</form>
+                {/* Paperclip / Upload Button */}
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current.click()}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    cursor: 'pointer',
+                    fontSize: '1.5em'
+                  }}
+                >
+                  📎
+                </button>
+
+                <input
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  placeholder="Type a message..."
+                  style={{
+                    flex: 1,
+                    padding: '10px',
+                    borderRadius: '20px',
+                    border: '1px solid #ccc'
+                  }}
+                />
+                <button type="submit">Send</button>
+              </form>
             )}
-
-           
           </>
         )}
       </div>
 
       {isGroupNameModalOpen && (
-        <div style={{
-          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-          background: 'rgba(0,0,0,0.5)', display: 'flex',
-          justifyContent: 'center', alignItems: 'center', zIndex: 2000
-        }}>
-          <div style={{
-            background: 'white', padding: '20px', borderRadius: '12px',
-            width: '320px', boxShadow: '0 4px 15px rgba(0,0,0,0.3)'
-          }}>
+        <div
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'rgba(0,0,0,0.5)',
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            zIndex: 2000
+          }}
+        >
+          <div
+            style={{
+              background: 'white',
+              padding: '20px',
+              borderRadius: '12px',
+              width: '320px',
+              boxShadow: '0 4px 15px rgba(0,0,0,0.3)'
+            }}
+          >
             <h3 style={{ marginTop: 0 }}>Group Name</h3>
             <input
               type="text"
@@ -1293,8 +1313,12 @@ const handleFileChange = async (e) => {
               onChange={(e) => setTempGroupName(e.target.value)}
               autoFocus
               style={{
-                width: '100%', padding: '10px', marginBottom: '20px',
-                borderRadius: '6px', border: '1px solid #ccc', boxSizing: 'border-box'
+                width: '100%',
+                padding: '10px',
+                marginBottom: '20px',
+                borderRadius: '6px',
+                border: '1px solid #ccc',
+                boxSizing: 'border-box'
               }}
               onKeyDown={(e) => e.key === 'Enter' && finalizeGroupCreation()}
             />
@@ -1309,8 +1333,11 @@ const handleFileChange = async (e) => {
                 onClick={finalizeGroupCreation}
                 disabled={!tempGroupName.trim()}
                 style={{
-                  padding: '8px 20px', background: '#007bff', color: 'white',
-                  borderRadius: '6px', border: 'none',
+                  padding: '8px 20px',
+                  background: '#007bff',
+                  color: 'white',
+                  borderRadius: '6px',
+                  border: 'none',
                   cursor: tempGroupName.trim() ? 'pointer' : 'not-allowed',
                   opacity: tempGroupName.trim() ? 1 : 0.5
                 }}
@@ -1321,7 +1348,6 @@ const handleFileChange = async (e) => {
           </div>
         </div>
       )}
-
     </div>
   )
 }

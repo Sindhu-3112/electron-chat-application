@@ -62,7 +62,8 @@ io.on('connection', (socket) => {
       
        io.to(recipientId).emit('newNotification', {
       from: senderName,
-      text: message.text,
+      // text: message.text,
+      text: message.fileData ? `File: ${message.fileName}` : message.text,
       chatId: socket.id 
     });
      console.log(`[NOTIFICATION DEBUG] Private notification sent to ${recipientId} from ${senderName}`);
@@ -269,29 +270,29 @@ socket.on('delete_message', ({ messageId, recipientId, type }) => {
 });
 
 
-socket.on("upload", (file, callback) => {
-  // 1. Log receipt of data
-  console.log("Received upload request.");
-  console.log("Data type:", typeof file); 
+// socket.on("upload", (file, callback) => {
+//   // 1. Log receipt of data
+//   console.log("Received upload request.");
+//   console.log("Data type:", typeof file); 
   
-  // Check if it's a Buffer and log its size in Megabytes
-  if (Buffer.isBuffer(file)) {
-    console.log(`File size: ${(file.length / (1024 * 1024)).toFixed(2)} MB`);
-  } else {
-    console.warn("Warning: Received data is not a Buffer. Check client-side emit.");
-  }
+//   // Check if it's a Buffer and log its size in Megabytes
+//   if (Buffer.isBuffer(file)) {
+//     console.log(`File size: ${(file.length / (1024 * 1024)).toFixed(2)} MB`);
+//   } else {
+//     console.warn("Warning: Received data is not a Buffer. Check client-side emit.");
+//   }
 
-  // 2. Attempt to save the file
-  fs.writeFile("./uploads/my-file-name", file, (err) => {
-    if (err) {
-      console.error("File Save Error:", err);
-      return callback({ status: "failed", error: err.message });
-    }
+//   // 2. Attempt to save the file
+//   fs.writeFile("./uploads/my-file-name", file, (err) => {
+//     if (err) {
+//       console.error("File Save Error:", err);
+//       return callback({ status: "failed", error: err.message });
+//     }
 
-    console.log("File saved successfully to disk.");
-    callback({ status: "success" });
-  });
-});
+//     console.log("File saved successfully to disk.");
+//     callback({ status: "success" });
+//   });
+// });
 
 
 
