@@ -23,64 +23,125 @@ let publicMessageHistory = []
 const roomMetadata = {}
 const users = {}
 
+// function broadcastUserList() {
+//   const usersArray = Object.keys(connectedUsers).map((id) => ({
+//     id: id,
+//     name: connectedUsers[id]
+//   }))
+//   io.emit('updateUserList', usersArray)
+// }
 function broadcastUserList() {
-  const usersArray = Object.keys(connectedUsers).map((id) => ({
-    id: id,
-    name: connectedUsers[id]
-  }))
-  io.emit('updateUserList', usersArray)
+  const userList = Object.keys(users).map((uuid) => {
+    const socketId = users[uuid];
+    const socketInstance = io.sockets.sockets.get(socketId);
+    
+    return {
+      id: uuid, // The persistent UUID
+      name: socketInstance ? socketInstance.username : "Unknown", // STRING
+      isGroup: false
+    };
+  });
+  
+  io.emit('updateUserList', userList);
 }
+
 
 io.on('connection', (socket) => {
   console.log(`[CONNECT] User connected: ${socket.id}`)
 
-  socket.on('registerName', (username) => {
-    if (users[username]) {
-      const oldSocket = io.sockets.sockets.get(users[username])
-      if (oldSocket) {
-        oldSocket.disconnect()
-        console.log(`[CLEANUP] Disconnected old session for ${username}`)
-      }
-    }
-    connectedUsers[socket.id] = username
-    console.log(`[REGISTER] User ${socket.id} registered as: ${username}`)
-    //  io.emit("user_list", Object.values(users));
-    broadcastUserList()
-  })
+  // socket.on('registerName', (username) => {
+  //   if (users[username]) {
+  //     const oldSocket = io.sockets.sockets.get(users[username])
+  //     if (oldSocket) {
+  //       oldSocket.disconnect()
+  //       console.log(`[CLEANUP] Disconnected old session for ${username}`)
+  //     }
+  //   }
+  //   connectedUsers[socket.id] = username
+  //   console.log(`[REGISTER] User ${socket.id} registered as: ${username}`)
+  //   //  io.emit("user_list", Object.values(users));
+  //   broadcastUserList()
+  // })
 
   socket.emit('messageHistory', publicMessageHistory)
-  socket.on('sendPrivateMessage', (data) => {
-    const { recipientId, message } = data
-    if (message && recipientId && message.text) {
-      message.timestamp = new Date().toISOString()
-      const senderName = connectedUsers[socket.id]
-      console.log(
-        `[PRIVATE MSG] from ${message.user} (${socket.id}) to (${recipientId}): "${message.text}"`
-      )
+  // socket.on('sendPrivateMessage', (data) => {
+  //   const { recipientId, message } = data
+  //   if (message && recipientId && message.text) {
+  //     message.timestamp = new Date().toISOString()
+  //     const senderName = connectedUsers[socket.id]
+  //     console.log(
+  //       `[PRIVATE MSG] from ${message.user} (${socket.id}) to (${recipientId}): "${message.text}"`
+  //     )
 
-      socket
-        .to(recipientId)
-        .emit('receivePrivateMessage', {
-          senderId: socket.id,
-          senderName: connectedUsers[socket.id],
-          message
-        })
+  //     socket
+  //       .to(recipientId)
+  //       .emit('receivePrivateMessage', {
+  //         senderId: socket.id,
+  //         senderName: connectedUsers[socket.id],
+  //         message
+  //       })
 
-      io.to(recipientId).emit('newNotification', {
-        from: senderName,
-        // text: message.text,
-        text: message.fileData ? `File: ${message.fileName}` : message.text,
-        chatId: socket.id
-      })
-      console.log(
-        `[NOTIFICATION DEBUG] Private notification sent to ${recipientId} from ${senderName}`
-      )
+  //     io.to(recipientId).emit('newNotification', {
+  //       from: senderName,
+  //       // text: message.text,
+  //       text: message.fileData ? `File: ${message.fileName}` : message.text,
+  //       chatId: socket.id
+  //     })
+  //     console.log(
+  //       `[NOTIFICATION DEBUG] Private notification sent to ${recipientId} from ${senderName}`
+  //     )
 
-      socket.emit('receivePrivateMessage', { senderId: socket.id, message })
-    } else {
-      console.log('[ERROR] Invalid private message data received:', data)
+  //     socket.emit('receivePrivateMessage', { senderId: socket.id, message })
+  //   } else {
+  //     console.log('[ERROR] Invalid private message data received:', data)
+  //   }
+  // })
+
+  // server.js
+socket.on('registerName', ({ username, userId }) => {
+    // 1. Join a persistent room named after the UUID
+    socket.join(userId);
+    socket.userId = userId;
+    socket.username = username;
+
+    // 2. Map UUID to current socket for cleanup
+    if (users[userId] && users[userId] !== socket.id) {
+      const oldSocket = io.sockets.sockets.get(users[userId]);
+      if (oldSocket) oldSocket.disconnect();
     }
-  })
+    
+    users[userId] = socket.id;
+    connectedUsers[socket.id] = { username, userId };
+    console.log(`[REGISTER] ${username} bound to UUID: ${userId}`);
+    broadcastUserList();
+});
+
+socket.on('sendPrivateMessage', (data) => {
+    const { recipientId, message } = data; // recipientId is now the UUID
+    
+    // Allow if text OR fileData exists
+    if (message && recipientId && (message.text || message.fileData)) {
+      const senderUuid = socket.userId;
+      
+      // Target the Recipient's UUID Room
+      io.to(recipientId).emit('receivePrivateMessage', {
+        senderId: senderUuid, // Pass UUID as ID
+        senderName: socket.username,
+        message: { ...message, timestamp: new Date().toISOString() }
+      });
+
+      // Notification using UUID
+      io.to(recipientId).emit('newNotification', {
+        from: socket.username,
+        text: message.fileData ? `File: ${message.fileName}` : message.text,
+        chatId: senderUuid
+      });
+
+      // Echo back to sender
+      socket.emit('receivePrivateMessage', { senderId: recipientId, message });
+    }
+});
+
 
   socket.on('disconnect', () => {
     const disconnectedUserName = connectedUsers[socket.id] || socket.id

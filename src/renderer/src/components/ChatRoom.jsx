@@ -91,36 +91,75 @@ function ChatRoom() {
 
   //To send username to the socket server and handle incoming events
 
-  useEffect(() => {
-    if (username) socket.emit('registerName', username)
+  // useEffect(() => {
+  //   if (username) socket.emit('registerName', username)
 
-    socket.on('connect', () => {
-      if (username) socket.emit('registerName', username)
-    })
+  //   socket.on('connect', () => {
+  //     if (username) socket.emit('registerName', username)
+  //   })
 
-    socket.on('updateUserList', (users) => {
-      setConnectedUsers(users.filter((user) => user.id !== socket.id))
-    })
+  //   socket.on('updateUserList', (users) => {
+  //     setConnectedUsers(users.filter((user) => user.id !== socket.id))
+  //   })
+
+  //   socket.on('receivePrivateMessage', (data) => {
+  //     const { senderId, message } = data
+  //     if (senderId !== socket.id) {
+  //       addMessageToHistory({ ...message, isPrivate: true }, senderId)
+  //     }
+  //     if (senderId !== activeRecipientId) {
+  //       setUnreadCounts((prev) => ({
+  //         ...prev,
+  //         [senderId]: (prev[senderId] || 0) + 1
+  //       }))
+  //     }
+  //   })
+
+  //   return () => {
+  //     socket.off('connect')
+  //     socket.off('updateUserList')
+  //     socket.off('receivePrivateMessage')
+  //   }
+  // }, [username, addMessageToHistory])
+useEffect(() => {
+    const myUuid = localStorage.getItem('persistentUserId');
+    
+    if (username && myUuid) {
+      socket.emit('registerName', { username, userId: myUuid });
+    }
+
+    // socket.on('updateUserList', (userList) => {
+    //   // Filter out your own persistent UUID, not socket.id
+    //   setConnectedUsers(userList.filter((user) => user.id !== myUuid));
+    // });
+    socket.on('updateUserList', (userList) => {
+  const myPersistentId = localStorage.getItem('persistentUserId');
+  
+  // Filter out yourself using the UUID
+  const filtered = userList.filter((u) => u.id !== myPersistentId);
+  setConnectedUsers(filtered);
+});
+
 
     socket.on('receivePrivateMessage', (data) => {
-      const { senderId, message } = data
-      if (senderId !== socket.id) {
-        addMessageToHistory({ ...message, isPrivate: true }, senderId)
-      }
+      const { senderId, message } = data; // senderId is a UUID
+      
+      // Store in Electron Store using UUID as the key
+      addMessageToHistory({ ...message, isPrivate: true }, senderId);
+      
       if (senderId !== activeRecipientId) {
         setUnreadCounts((prev) => ({
           ...prev,
           [senderId]: (prev[senderId] || 0) + 1
-        }))
+        }));
       }
-    })
+    });
 
     return () => {
-      socket.off('connect')
-      socket.off('updateUserList')
-      socket.off('receivePrivateMessage')
-    }
-  }, [username, addMessageToHistory])
+      socket.off('updateUserList');
+      socket.off('receivePrivateMessage');
+    };
+}, [username, activeRecipientId, addMessageToHistory]);
 
   useEffect(() => {
     scrollToBottom()
@@ -389,17 +428,35 @@ const handleFileChange = async (e) => {
   }, [addMessageToHistory])
 
   //To handle user name submission
+  // const handleNameSubmit = (e) => {
+  //   e.preventDefault()
+  //   const name = input.trim()
+
+  //   if (name) {
+  //     setUsername(name)
+  //     socket.emit('registerName', name)
+  //     window.electronAPI.registerSocketUser(name)
+  //     saveToStore(name, allChatMessages) // ✅
+  //   }
+  // }
+
   const handleNameSubmit = (e) => {
-    e.preventDefault()
-    const name = input.trim()
+    e.preventDefault();
+    const name = input.trim();
 
     if (name) {
-      setUsername(name)
-      socket.emit('registerName', name)
-      window.electronAPI.registerSocketUser(name)
-      saveToStore(name, allChatMessages) // ✅
+      // Get existing UUID or create new one
+      let userId = localStorage.getItem('persistentUserId') || uuidv4();
+      localStorage.setItem('persistentUserId', userId);
+
+      setUsername(name);
+      socket.emit('registerName', { username: name, userId: userId });
+      
+      if(window.electronAPI) window.electronAPI.registerSocketUser(name);
+      saveToStore(name, allChatMessages);
     }
-  }
+};
+
 
   const handleLogout = () => {
     setUsername(null)
